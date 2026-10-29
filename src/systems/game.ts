@@ -10,13 +10,16 @@ import { answerConversation, completeConversation } from './story';
 import {applyStyle,ownedItem,storeItem,flipItem} from './interior';
 import {claimMilestone} from './milestones';
 import {decorById} from '../data/decorations';
+export interface KitchenFeedback { message: string; kind: 'success' | 'hint' | 'warning' }
 export type GameView = 'restaurant' | 'kitchen' | 'decorate';
 export class KitchenGame extends EventTarget {
   state: State; view: GameView = 'restaurant'; hasSave: boolean; paused = false; notice = ''; placing: string | null = null; selectedDecoration: string | null = null;
+  kitchenFeedback: KitchenFeedback | null = null;
+  feedback(message: string, kind: KitchenFeedback['kind'] = 'hint') { this.kitchenFeedback = { message, kind }; this.dispatchEvent(new Event('kitchen-feedback')); }
   constructor(public saves = new SaveStore()) { super(); const saved = saves.load(); this.state = saved ?? newState(); this.hasSave = !!saved; }
   changed() { const saved = this.saves.save(this.state); this.hasSave = saved || this.hasSave; this.dispatchEvent(new Event('change')); }
   message(text: string) { this.notice = text; this.dispatchEvent(new Event('notice')); }
-  reset() { this.state = newState(); this.view = 'restaurant'; this.placing = null; this.selectedDecoration=null; this.changed(); }
+  reset() { this.kitchenFeedback=null;this.state = newState(); this.view = 'restaurant'; this.placing = null; this.selectedDecoration=null; this.changed(); }
   open() { if (this.state.phase !== 'morning') return; this.state.phase = 'open'; this.spawnOrder(); this.changed(); }
   spawnOrder() { const order = createOrder(this.state); if (!order) return; this.state.orders.push(order); this.changed(); }
   acceptOrder() { const o = this.state.orders[0]; if (!o || this.state.phase !== 'open') return; o.accepted = true; this.changed(); }
@@ -25,7 +28,7 @@ export class KitchenGame extends EventTarget {
   readLetter(id: string) { const letter = letters.find(l => l.id === id && l.day <= this.state.day); if (!letter || this.state.story.read.includes(id)) return; this.state.story.read.push(id); this.changed(); }
   beginDish(recipeId?: RecipeId) {
     if (this.state.phase !== 'open' || !this.state.orders[0]?.accepted) return;
-    this.view = 'kitchen';
+    this.kitchenFeedback=null;this.view = 'kitchen';
     if (recipeId && Object.hasOwn(recipes, recipeId)) {
       if (this.state.dish && this.state.dish.step > 0 && this.state.dish.recipeId !== recipeId) { this.message('Limpe a tábua antes de começar outra receita. Os ingredientes são livres.'); return; }
       if (!this.state.dish || this.state.dish.recipeId !== recipeId) this.state.dish = { recipeId, step: 0, added: [], skill: [], actions: 0, ready: false };
@@ -50,7 +53,7 @@ export class KitchenGame extends EventTarget {
     d.skill.push(Math.max(.25, Math.min(1, quality))); d.step++; d.actions = 0; this.advance();
   }
   private advance() { const s = this.state, d = s.dish; if (d) d.ready = d.step >= dishSteps(d, s.orders[0]?.extra ?? null).length; this.changed(); }
-  discard() { if (!this.state.dish) return; this.state.dish = null; this.changed(); this.message('Tábua limpa. Pode recomeçar sem custo e sem preocupação.'); }
+  discard() { if (!this.state.dish) return;this.kitchenFeedback=null; this.state.dish = null; this.changed(); this.message('Tábua limpa. Pode recomeçar sem custo e sem preocupação.'); }
   serve() {
     const s = this.state, d = s.dish, o = s.orders[0]; if (!o?.accepted || !d?.ready) return null;
     const q = dishQuality(d, o, s.upgrades.includes('counter'));
@@ -61,7 +64,7 @@ export class KitchenGame extends EventTarget {
     s.money += total; s.stats.revenue += price; s.stats.tips += tip; s.stats.served++; s.stats.quality += q;
     s.reputation = Math.max(0, Math.min(5, s.reputation + (q - .65) * .12)); s.xp += Math.round(15 + q * 25);
     s.relationships[o.customerId] = (s.relationships[o.customerId] ?? 0) + 1;
-    s.orders.shift(); s.dish = null; this.view = 'restaurant'; this.changed();
+    s.orders.shift(); s.dish = null;this.kitchenFeedback=null; this.view = 'restaurant'; this.changed();
     const c = customers.find(c => c.id === o.customerId)!;
     this.message(story ?? `${c.name}: “${q >= .85 ? 'Está uma delícia! Dá para sentir o carinho.' : q >= .5 ? 'Obrigada por cozinhar para mim. Quero voltar amanhã.' : 'Não era bem o que pedi, mas amanhã tentamos de novo.'}”  +¥ ${total}`);
     this.dispatchEvent(new CustomEvent('served', { detail: { quality: q, total, story } }));

@@ -15,6 +15,10 @@ export default defineConfig({
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-webgl'],
     },
   },
+  projects: [
+    { name: 'canvas' },
+    { name: 'webgl', testMatch: ['**/interaction.spec.ts','**/gameplay.spec.ts'], grep: /mouse:|prepara e entrega/, use: { launchOptions: { executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader'] } } },
+  ],
   webServer: {
     command: `npm run dev -- --port ${port} --strictPort`,
     url: `http://127.0.0.1:${port}`,

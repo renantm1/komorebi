@@ -43,7 +43,7 @@ O dinheiro vem de refeições concluídas e entregues. Precisão da receita e mo
 2. Na manhã, escolha seu cardápio, leia cartas ou decore o salão. Abra quando quiser.
 3. Escute o cliente, escolha uma resposta se quiser conversar e aceite com **Claro, já preparo!**. **Pode repetir o pedido?** esclarece a receita.
 4. Vá à cozinha e **escolha a receita** no caderno acima da bancada; as setas revelam mais pratos. O jogador pode escolher uma receita diferente da pedida, com consequências na qualidade.
-5. Arraste ingredientes da prateleira para o prato. Siga os gestos de cada família, depois sirva com carinho.
+5. Clique no ingrediente iluminado ou arraste seu cartão (desenho, nome ou borda) para a tábua destacada. Uma mensagem confirma a adição; o ingrediente desaparece no prato e a prateleira é reposta sem custo. Siga os gestos de cada família, depois sirva com carinho.
 6. Atenda os vizinhos do dia, feche a casa, consulte o resultado e volte amanhã. Os dias continuam após o dia 30.
 
 O caderno de receitas também permite consultar os ingredientes e escolher um prato durante o expediente. Há confirmação antes de trocar um preparo iniciado. **Esc** abre ou fecha as configurações.
@@ -66,6 +66,8 @@ O caderno de receitas também permite consultar os ingredientes e escolher um pr
 | Karaage crocante | Marinar frango, empanar, fritar e finalizar |
 
 A faixa verde de cozimento e fritura é generosa: aproximadamente 1,5 a 3,3 segundos. Não há limite para iniciar ou tentar novamente. Pedidos a partir do dia 3 podem incluir complementos compatíveis com o prato. Complementos já presentes na receita não são cobrados em etapas duplicadas.
+
+No PC, segure o botão esquerdo no arroz e deslize em qualquer direção para modelar; para enrolar, arraste para um dos lados. A barra mostra quando pode soltar. Corte e dobra do gyoza usam marcas numeradas desenhadas sobre a comida: clique na marca destacada. Os gestos são cancelados ao abrir configurações, trocar de janela ou redimensionar durante um arraste; a receita fica na mesma etapa para tentar de novo. Soltar um ingrediente fora da tábua o devolve à prateleira com uma orientação.
 
 ## História e vizinhos
 
@@ -103,6 +105,8 @@ Abra [Komorebi](https://renantm1.github.io/komorebi/) no celular. No menu do jog
 Na primeira visita online, espere a indicação **Pronto para jogar offline** em Configurações → Aplicativo & offline. O service worker guarda HTML, scripts, fontes e ícones. Arte e trilha são geradas localmente; as doze receitas e a história funcionam sem conexão. A versão de desenvolvimento não registra service worker; offline é validado no build de produção.
 
 Atualizações aguardam confirmação em Aplicativo & offline → **Salvar e atualizar**. O jogo grava o progresso antes de recarregar e permite retomar o prato. A atualização dos caches não remove o LocalStorage. O progresso continua local ao navegador, origem e aparelho; não há sincronização. Limpar os dados do site pode remover tanto o cache quanto a partida. O navegador também pode liberar o cache quando o aparelho estiver sem espaço.
+
+No computador, a versão carregada aparece no cabeçalho. Quando uma atualização fica pronta, esse indicador vira **Nova versão · Salvar e atualizar**.
 
 ## Arquivo para baixar no computador
 

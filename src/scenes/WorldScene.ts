@@ -50,7 +50,7 @@ export class WorldScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer,objects:Phaser.GameObjects.GameObject[]) => { if(objects.some(o=>o.getData('decoration')))return; if (!this.model.paused && this.model.view === 'decorate' && this.model.placing && p.worldY > 120 && p.worldY < 640) { this.model.placeDecor(this.model.placing, p.worldX, p.worldY); audio.effect('drop'); } });
     const sync = () => this.sync(), served = (e: Event) => this.celebrate((e as CustomEvent).detail.total);
     this.model.addEventListener('change', sync); this.model.addEventListener('served', served);
-    const cleanup=()=>{this.model.removeEventListener('change',sync);this.model.removeEventListener('served',served);};this.events.once('shutdown',cleanup);this.events.once('destroy',cleanup);this.sync();
+    const cleanup=()=>{this.model.removeEventListener('change',sync);this.model.removeEventListener('served',served);};this.events.once('shutdown',cleanup);this.events.once('destroy',cleanup);this.sync();this.events.once('update',()=>window.dispatchEvent(new Event('komorebi-world-ready')));
   }
   private sync() {
     const m = this.model, s = m.state; this.room.setVisible(m.view !== 'kitchen'); this.station.sync();this.interior.sync();
