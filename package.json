@@ -1,0 +1,24 @@
+{
+  "name": "komorebi-japanese-kitchen",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0",
+    "@fontsource/fraunces": "^5.2.6",
+    "@fontsource/nunito-sans": "^5.2.5"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4",
+    "@playwright/test": "^1.56.0"
+  }
+}

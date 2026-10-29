@@ -1,0 +1,1 @@
+export const weather = [ {name:'Chuva tranquila',kind:'rain'}, {name:'Sol entre folhas',kind:'sun'}, {name:'Céu de algodão',kind:'cloud'}, {name:'Brisa de sakura',kind:'sakura'}, {name:'Chuva de primavera',kind:'rain'}, {name:'Neve delicada',kind:'snow'} ] as const;
