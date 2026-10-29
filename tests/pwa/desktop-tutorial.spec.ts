@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
-import {version} from '../../package.json';
+import {readFileSync} from 'node:fs';
+const {version}=JSON.parse(readFileSync(new URL('../../package.json',import.meta.url),'utf8'));
 test.use({viewport:{width:1366,height:768},isMobile:false,hasTouch:false});
 test('PC publicado: tutorial retoma offline e entrega um prato com ajuda',async({page,context})=>{
  const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('komorebi.save.v1')!)),assist=()=>page.locator('#tutorial-card .tutorial-assist');
