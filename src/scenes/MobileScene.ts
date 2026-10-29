@@ -71,7 +71,7 @@ export class MobileScene extends Phaser.Scene {
     this.model.addEventListener('change', sync); this.model.addEventListener('served', served);
     this.scale.on('resize', this.layout, this);
     const cleanup=()=>{this.model.removeEventListener('change',sync);this.model.removeEventListener('served',served);this.scale.off('resize',this.layout,this);};this.events.once('shutdown',cleanup);this.events.once('destroy',cleanup);
-    this.layout();
+    this.layout();this.events.once('update',()=>window.dispatchEvent(new Event('komorebi-world-ready')));
   }
   private toX(x: number) { return this.wide ? x : -90 + x * 820 / 1120; }
   private toY(y: number) { return this.wide ? y * this.height / 730 : (60 + y * 650 / 730) * this.height / 900; }
