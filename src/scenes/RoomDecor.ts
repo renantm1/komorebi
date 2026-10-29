@@ -17,7 +17,7 @@ export class RoomDecor {
     this.layer = scene.add.container(0, 0); room.add(this.layer);
     this.outline = scene.add.graphics(); room.add(this.outline);
     this.ghost = scene.add.image(190, 520, 'decor-plant').setAlpha(.45).setVisible(false); room.add(this.ghost);
-    scene.input.on('pointermove', (p: Phaser.Input.Pointer) => { const id = model.placing; if (model.view !== 'decorate' || !id) return; const point = placement(model.state, id, p.x, p.y); if (point) this.ghost.setPosition(point.x, point.y); });
+    scene.input.on('pointermove', (p: Phaser.Input.Pointer) => { const id = model.placing; if (model.view !== 'decorate' || !id) return; const point = placement(model.state, id, p.worldX, p.worldY); if (point) this.ghost.setPosition(point.x, point.y); });
   }
   sync() {
     const s = this.model.state, editing = this.model.view === 'decorate';
@@ -34,7 +34,7 @@ export class RoomDecor {
         const group = this.scene.add.container(d.x, d.y), image = this.scene.add.image(0, 0, 'decor-' + d.id).setDisplaySize(spec.width ?? 100, spec.height ?? 112).setInteractive({ useHandCursor: true });
         image.setData('decoration', d.id); group.add(image); this.layer.add(group); this.scene.input.setDraggable(image); object = { group, image }; this.objects.set(d.id, object);
         image.on('pointerdown', () => { if (this.model.view === 'decorate' && !this.model.paused) this.model.selectDecor(d.id); else if (spec.type === 'windchime') audio.effect('bell'); });
-        image.on('drag', (p: Phaser.Input.Pointer) => { if (this.model.view !== 'decorate' || this.model.paused) return; const point = placement(this.model.state, d.id, p.x, p.y); if (point) { group.setPosition(point.x, point.y); this.drawOutline(); } });
+        image.on('drag', (p: Phaser.Input.Pointer) => { if (this.model.view !== 'decorate' || this.model.paused) return; const point = placement(this.model.state, d.id, p.worldX, p.worldY); if (point) { group.setPosition(point.x, point.y); this.drawOutline(); } });
         image.on('dragend', () => { if (this.model.view === 'decorate') this.model.placeDecor(d.id, group.x, group.y); });
         if (spec.type === 'aquarium') this.fish(group);
         if (['windchime', 'lantern'].includes(spec.type)) this.scene.tweens.add({ targets: image, angle: 2.5, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });

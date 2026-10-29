@@ -48,6 +48,11 @@ jobs:
       - name: Gerar o jogo para produção
         run: npm run build
 
+      - name: Testar o PWA de produção no celular e offline
+        run: npm run test:pwa
+        env:
+          CI: 'true'
+
       - name: Guardar evidências se um teste falhar
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -1,7 +1,8 @@
 import {test,expect} from '@playwright/test';
 import {newState} from '../../src/systems/state';
 import {seed,saved,clickWorld,drag,choose,cook} from './helpers';
-async function pixel(page:any,x:number,y:number){return page.evaluate(([x,y]:number[])=>{const c=document.querySelector('canvas')!;return Array.from(c.getContext('2d')!.getImageData(x,y,1,1).data);},[x,y]);}
+async function sample(page:any,x:number,y:number,width=2,height=2){const b=(await page.locator('canvas').boundingBox())!;return (await page.screenshot({clip:{x:b.x+x*b.width/1120,y:b.y+y*b.height/730,width:width*b.width/1120,height:height*b.height/730}})).toString('base64');}
+async function pixel(page:any,x:number,y:number){return sample(page,x,y);}
 test('pisos e paredes são comprados, mudam o cenário e sobrevivem ao recarregamento',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await seed(page,newState());await page.waitForTimeout(1100);const floor=await pixel(page,255,600),wall=await pixel(page,742,200);
  await page.getByRole('button',{name:'Decorar',exact:true}).click();await page.locator('.shop-tabs').getByRole('button',{name:'Pisos',exact:true}).click();await page.locator('.shop-item').filter({has:page.getByRole('heading',{name:'Tatame de junco'})}).getByRole('button').click();await page.waitForTimeout(400);
@@ -15,7 +16,7 @@ test('móveis da avó podem ser arrastados, virados, guardados e recolocados',as
 });
 test('aquário tem peixes animados e pode ser guardado sem perder a compra',async({page})=>{
  const s=newState();s.day=6;s.owned=['aquarium'];await seed(page,s);await page.getByRole('button',{name:'Decorar',exact:true}).click();await page.locator('.shop-item').filter({has:page.getByRole('heading',{name:'Pequeno aquário'})}).getByRole('button',{name:'Posicionar'}).click();await clickWorld(page,240,455);await page.waitForTimeout(450);const placed=(await saved(page)).decorations.find(d=>d.id==='aquarium')!;expect(Math.abs(placed.x-240)).toBeLessThan(2);expect(Math.abs(placed.y-455)).toBeLessThan(2);
- const sample=()=>page.evaluate(()=>Array.from(document.querySelector('canvas')!.getContext('2d')!.getImageData(215,422,62,57).data).join(','));const first=await sample();await page.waitForTimeout(650);expect(await sample()).not.toBe(first);await page.screenshot({path:'test-results/aquarium.png',fullPage:true});await page.getByRole('button',{name:'Guardar',exact:true}).click();expect((await saved(page)).decorations).toHaveLength(0);expect((await saved(page)).owned).toContain('aquarium');
+ const aquarium=()=>sample(page,215,422,62,57);const first=await aquarium();await page.waitForTimeout(650);expect(await aquarium()).not.toBe(first);await page.screenshot({path:'test-results/aquarium.png',fullPage:true});await page.getByRole('button',{name:'Guardar',exact:true}).click();expect((await saved(page)).decorations).toHaveLength(0);expect((await saved(page)).owned).toContain('aquarium');
 });
 test('conquista pronta entrega presente uma vez e preserva o caixa',async({page})=>{
  const s=newState();s.ledger.served=10;await seed(page,s);await page.getByRole('button',{name:'Conquistas',exact:true}).click();const card=page.locator('.milestone-card').filter({has:page.getByRole('heading',{name:'Dez lugares à mesa'})});await card.getByRole('button',{name:'Receber meu presente'}).click();await expect(card.getByRole('button',{name:'Na sua coleção'})).toBeDisabled();expect((await saved(page)).owned).toContain('windchime');expect((await saved(page)).money).toBe(15000);await page.screenshot({path:'test-results/milestones.png',fullPage:true});await page.reload();await page.getByRole('button',{name:'Continuar · dia 1'}).click();expect((await saved(page)).ledger.claimed).toEqual(['ten-meetings']);

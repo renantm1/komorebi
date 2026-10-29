@@ -6,6 +6,10 @@ import '@fontsource/nunito-sans/latin-600.css';
 import '@fontsource/nunito-sans/latin-700.css';
 import '@fontsource/nunito-sans/latin-800.css';
 import './style.css';
+import './mobile.css';
+import { mobilePanel, sheetKind } from './ui/mobilePanels';
+import { appInstall } from './pwa/client';
+import { appPanel } from './ui/appPanel';
 import { KitchenGame } from './systems/game';
 import { createWorld } from './scenes/WorldScene';
 import { recipes, weather, yen, type RecipeId } from './data/catalog';
@@ -17,11 +21,15 @@ import { audio, LOFI_TRACKS } from './systems/audio';
 import { image, icon } from './ui/helpers';
 import { menuPanel, morningPanel, servicePanel, nightPanel, decorPanel } from './ui/panels';
 import { modalContent } from './ui/modals';
+const mobileGame = matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse) and (max-width:1024px)').matches;
+document.body.classList.toggle('mobile-game', mobileGame);
 const model = new KitchenGame();
 let menu = true, modal: string | null = null, selectedLetter = '', recipeFilter = 0, toastTimer: ReturnType<typeof setTimeout>, autoTimer = 0, shopFilter = 0, paletteKey = '';
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 $('#app').innerHTML = `<header class="header"><a class="brand" href="#" aria-label="Komorebi, menu principal" data-action="main-menu"><span class="brand-seal">${icon('bowl')}</span><span><strong>KOMOREBI<span class="brand-kanji">木漏れ日</span></strong><small>JAPANESE KITCHEN</small></span></a><div id="day-info"></div><div id="wallet"></div><button class="icon-button settings-button" data-action="settings" aria-label="Configurações">${icon('settings')}</button></header><div class="layout"><nav class="rail" aria-label="Navegação do jogo"><div class="rail-top"><button data-action="restaurant" class="nav-item selected">${icon('home')}<span>Salão</span></button><button data-action="kitchen" class="nav-item">${icon('bowl')}<span>Cozinha</span></button><span class="rail-divider"></span><button data-action="recipes" class="nav-item">${icon('book')}<span>Receitas</span></button><button data-action="shop" class="nav-item">${icon('plant')}<span>Decorar</span></button><button data-action="story" class="nav-item story-nav">${icon('mail')}<span>História</span><i id="letter-badge"></i></button><button data-action="goals" class="nav-item">${icon('star')}<span>Conquistas</span></button><button data-action="calendar" class="nav-item">${icon('calendar')}<span>Calendário</span></button></div><div class="rail-bottom"><button data-action="settings" class="nav-item">${icon('sound')}<span>Ambiente</span></button><button data-action="help" class="nav-item">${icon('help')}<span>Como jogar</span></button></div></nav><main class="main"><div class="page-heading"><div><p class="eyebrow">UM CANTINHO SEU, UM DIA DE CADA VEZ</p><h1 id="page-title">O sabor de se sentir em casa.</h1></div><div id="weather-pill"></div></div><section class="game-layout"><div class="stage-column"><div class="stage-shell"><div id="world" role="application" aria-label="Restaurante Komorebi: cena interativa de culinária"></div><div id="scene-label" class="scene-label"></div><button id="scene-switch" class="scene-switch" data-action="kitchen">${icon('bowl')} Ir para a cozinha ${icon('arrow')}</button><div id="recipe-dock" class="recipe-dock" aria-label="Escolha a receita para preparar"></div><div id="scene-caption" class="scene-caption"></div><div id="scene-radio" class="scene-radio"></div></div><div class="under-scene"><span>${icon('leaf')} Sem pressa. Os ingredientes nunca acabam.</span><button class="text-button" data-action="help">Como jogar ${icon('arrow')}</button></div></div><aside id="side-panel" class="side-panel" aria-label="Seu restaurante"></aside></section><footer class="footer"><span id="save-status"></span><span>Feito para desacelerar <span class="footer-dot">·</span> 木漏れ日</span><button class="text-button" data-action="credits">Sobre o jogo</button></footer></main></div><div id="toast" class="toast" role="status"></div><div id="modal-root"></div>`;
 function render() {
+  $('.settings-button').classList.toggle('has-update', appInstall.updateAvailable);
+  $('.settings-button').title = appInstall.updateAvailable ? 'Nova versão disponível em Aplicativo & offline' : 'Configurações';
   const s = model.state, w = weather[(s.day - 1) % weather.length];
   document.body.classList.toggle('menu-state', menu); document.body.classList.toggle('in-kitchen', model.view === 'kitchen'); document.body.classList.toggle('decorating', model.view === 'decorate');
   $('#day-info').innerHTML = `<span class="day-icon">${icon(w.kind)}</span><div><strong>Dia ${String(s.day).padStart(2, '0')} <span class="muted">·</span> ${s.phase === 'morning' ? 'Uma nova manhã' : s.phase === 'open' ? 'Portas abertas' : 'Luzes de fim de dia'}</strong><small>${w.name} · ${s.settings.relaxed ? 'Sem pressa' : 'Uma casa movimentada'}</small></div>`;
@@ -37,7 +45,9 @@ function render() {
   $('#scene-radio').innerHTML = `<button class="radio-toggle" data-action="toggle-music" aria-label="${s.settings.music ? 'Pausar música' : 'Tocar música'}"><span class="mini-vinyl ${s.settings.music && audio.status.started ? 'spinning' : ''}"></span>${icon(s.settings.music ? 'pause' : 'play')}</button><button class="radio-track" data-action="settings"><small>RÁDIO KOMOREBI · LO-FI</small><strong>${LOFI_TRACKS[s.settings.track].title}</strong></button><button class="radio-next" data-action="next-track" aria-label="Próxima faixa">${icon('arrow')}</button>`;
   audio.weather(w.kind === 'rain');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('selected', (el as HTMLElement).dataset.action === (model.view === 'kitchen' ? 'kitchen' : model.view === 'decorate' ? 'shop' : 'restaurant')));
-  $('#side-panel').innerHTML = menu ? menuPanel(model) : model.view === 'decorate' ? decorPanel(model) : s.phase === 'morning' ? morningPanel(model) : s.phase === 'night' ? nightPanel(model) : servicePanel(model);
+  $('#side-panel').innerHTML = menu ? menuPanel(model) : mobileGame ? mobilePanel(model) : model.view === 'decorate' ? decorPanel(model) : s.phase === 'morning' ? morningPanel(model) : s.phase === 'night' ? nightPanel(model) : servicePanel(model);
+  document.body.dataset.sheet = sheetKind(model);
+  if(menu) $('#side-panel .menu-actions').insertAdjacentHTML('beforeend', `<button class="install-entry" data-action="app">${icon('home')} ${appInstall.installed ? 'Aplicativo & offline' : 'Jogar como aplicativo'}</button>`);
   renderPalette();
 }
 function renderPalette() {
@@ -52,7 +62,7 @@ function syncAudio() { const s = model.state.settings; audio.start(s.volume, s.m
 function showModal(name: string, preserveFocus = false) {
   modal = name; model.paused = true;
   if (name === 'story') { if (!selectedLetter) selectedLetter = activeLetter(model.state)?.id ?? letters[0].id; model.readLetter(selectedLetter); }
-  const { title, body, eyebrow, wide } = modalContent(name, model, selectedLetter, recipeFilter, shopFilter);
+  const { title, body, eyebrow, wide } = name === 'app' ? appPanel() : modalContent(name, model, selectedLetter, recipeFilter, shopFilter);
   $('#modal-root').innerHTML = `<div class="modal-backdrop"><section class="modal ${wide ? 'wide' : ''} ${name === 'story' ? 'story-modal' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('close')}</button><p class="eyebrow">${eyebrow}</p><h2 id="modal-title">${title}</h2>${body}</section></div>`;
   if (!preserveFocus) $('.modal').focus();
 }
@@ -65,7 +75,9 @@ function chooseRecipe(id: RecipeId) {
 }
 function action(id: string) {
   if (!audio.status.started) syncAudio(); audio.effect('click'); const s = model.state;
-  if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }
+  if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals', 'app'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }
+  if (id === 'install-app') { void appInstall.install().then(() => showModal('app')); return; }
+  if (id === 'update-app') { if(model.hasSave && !model.saves.save(model.state)){ model.message(model.saves.error || 'Não foi possível salvar. Tente novamente antes de atualizar.'); return; } void appInstall.update().catch(()=>model.message('A atualização não pôde ser aplicada. Tente novamente.')); return; }
   if (id === 'new' || id === 'reset-confirmed') { if (modal) closeModal(); model.reset(); selectedLetter = ''; start(); showModal('story'); return; }
   if (id === 'continue') { start(); return; }
   if (id === 'close-modal') { closeModal(); return; }
@@ -124,8 +136,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Tab' && modal) { const els = Array.from($('.modal').querySelectorAll<HTMLElement>('button:not(:disabled),input,a')); const first = els[0], last = els.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); } }
 });
 model.addEventListener('change', render);
+appInstall.addEventListener('change', () => { render(); if (modal === 'app') showModal('app', true); });
 model.addEventListener('notice', () => { const el = $('#toast'); el.innerHTML = `${icon('leaf')}<span>${model.notice}</span>`; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 6500); });
-model.paused = true; createWorld('world', model); render();
+model.paused = true; render(); createWorld('world', model, mobileGame);
 setInterval(() => { if (menu || modal || model.state.phase !== 'open') return; autoTimer++; if (autoTimer % 22 === 0 && !model.state.settings.relaxed) model.spawnOrder(); if (autoTimer % 9 === 0 && model.state.stats.served < dayTarget(model.state.day) && model.state.orders.length === 0) model.spawnOrder(); }, 1000);
 document.addEventListener('visibilitychange', () => { model.paused = document.hidden || !!modal || menu; audio.pause(document.hidden); if (document.hidden && model.hasSave) model.changed(); });
 window.addEventListener('beforeunload', () => { if (model.hasSave) model.saves.save(model.state); });

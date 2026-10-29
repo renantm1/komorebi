@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
-import { customers, ingredients, recipes, weather, decorCatalog, type IngredientId } from '../data/catalog';
-import { restaurantSVG, customerSVG, foodSVG, ingredientSVG, decorationSVG, svgURL } from '../art/illustrations';
+import { customers, weather } from '../data/catalog';
 import { KitchenGame } from '../systems/game';
 import { audio } from '../systems/audio';
 import { KitchenStation } from './KitchenStation';
 import {RoomDecor} from './RoomDecor';
-import {roomSVG,floorSVG} from '../art/roomArt';
+import { loadArt } from './loadArt';
+import { MobileScene } from './MobileScene';
 export class WorldScene extends Phaser.Scene {
   private room!: Phaser.GameObjects.Container;
   private station!: KitchenStation;
@@ -17,17 +17,10 @@ export class WorldScene extends Phaser.Scene {
   private openSign!: Phaser.GameObjects.Container;
   private festival!: Phaser.GameObjects.Container;
   private clock = 0; private lastView = ''; private lastDecor = '';
-  constructor(private model: KitchenGame) { super('World'); }
-  preload() {
-    this.load.svg('restaurant', svgURL(roomSVG('wall-cream')), { width: 1120, height: 730 });
-    for(const wall of ['wall-sage','wall-sakura'])this.load.svg(wall,svgURL(roomSVG(wall)),{width:1120,height:730});
-    for(const floor of ['floor-tatami','floor-tile'])this.load.svg(floor,svgURL(floorSVG(floor)),{width:1120,height:305});
-    for (const c of customers) { this.load.svg(c.id, svgURL(customerSVG(c))); this.load.svg(c.id + '-blink', svgURL(customerSVG(c, true))); }
-    for (const id of Object.keys(recipes)) this.load.svg('food-' + id, svgURL(foodSVG(id as keyof typeof recipes)));
-    for (const id of Object.keys(ingredients)) this.load.svg('ingredient-' + id, svgURL(ingredientSVG(id as IngredientId)));
-    for (const d of decorCatalog) this.load.svg('decor-' + d.id, svgURL(decorationSVG(d.id)));
-  }
+  constructor(private model: KitchenGame, private density = 1) { super('World'); }
+  preload() { loadArt(this); }
   create() {
+    this.cameras.main.setOrigin(0, 0).setZoom(this.density);
     const room = this.room = this.add.container(0, 0); const backdrop=this.add.image(560,365,'restaurant');room.add(backdrop);
     const doorInterior = this.add.rectangle(594, 284, 251, 216, 0x746e53); room.add(doorInterior);
     this.door = this.add.image(560, 365, 'restaurant').setCrop(468, 174, 251, 216); room.add(this.door);
@@ -52,7 +45,7 @@ export class WorldScene extends Phaser.Scene {
     this.station = new KitchenStation(this, this.model);
     this.time.addEvent({ delay: 3500, loop: true, callback: () => { for (const [id, actor] of this.actors) { const sprite = actor.getByName('person') as Phaser.GameObjects.Image, o = this.model.state.orders.find(o => o.id === id); if (!sprite || !o) continue; sprite.setTexture(o.customerId + '-blink'); this.time.delayedCall(170, () => { if (sprite.active) sprite.setTexture(o.customerId); }); } } });
     this.time.addEvent({ delay: 900, loop: true, callback: () => { if (this.model.view === 'kitchen') return; const table=this.model.state.interior.furniture.find(d=>d.id==='table-round'&&!d.hidden);if(!table)return;const steam = this.add.ellipse(table.x-15 + Math.random() * 10, table.y-45, 3, 11, 0xfff4d7, .5); room.add(steam); this.tweens.add({ targets: steam, y: 451, x: steam.x + 8, alpha: 0, scaleX: 3, duration: 2300, onComplete: () => steam.destroy() }); } });
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer,objects:Phaser.GameObjects.GameObject[]) => { if(objects.some(o=>o.getData('decoration')))return; if (!this.model.paused && this.model.view === 'decorate' && this.model.placing && p.y > 120 && p.y < 640) { this.model.placeDecor(this.model.placing, p.x, p.y); audio.effect('drop'); } });
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer,objects:Phaser.GameObjects.GameObject[]) => { if(objects.some(o=>o.getData('decoration')))return; if (!this.model.paused && this.model.view === 'decorate' && this.model.placing && p.worldY > 120 && p.worldY < 640) { this.model.placeDecor(this.model.placing, p.worldX, p.worldY); audio.effect('drop'); } });
     const sync = () => this.sync(), served = (e: Event) => this.celebrate((e as CustomEvent).detail.total);
     this.model.addEventListener('change', sync); this.model.addEventListener('served', served);
     this.events.once('shutdown', () => { this.model.removeEventListener('change', sync); this.model.removeEventListener('served', served); }); this.sync();
@@ -89,6 +82,16 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 }
-export function createWorld(parent: string, model: KitchenGame) {
-  return new Phaser.Game({ type: Phaser.CANVAS, parent, width: 1120, height: 730, backgroundColor: '#e6d6b8', antialias: true, scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [new WorldScene(model)], render: { roundPixels: false }, audio: { noAudio: true } });
+export function createWorld(parent: string, model: KitchenGame, mobile = false) {
+  const host = document.getElementById(parent)!;
+  const density = Math.min(window.devicePixelRatio || 1, 2);
+  const width = () => host.clientWidth / Math.max(1, host.clientHeight) > 1.15 ? 1120 : 640;
+  const height = () => width() * host.clientHeight / Math.max(1, host.clientWidth);
+  const game = new Phaser.Game({ type: Phaser.AUTO, parent, width: (mobile ? width() : 1120) * density, height: (mobile ? height() : 730) * density, backgroundColor: '#e6d6b8', antialias: true, scale: { mode: mobile ? Phaser.Scale.FIT : Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [mobile ? new MobileScene(model, density) : new WorldScene(model, density)], render: { roundPixels: false }, audio: { noAudio: true } });
+  if (mobile) {
+    const observer = new ResizeObserver(() => { if (game.isBooted) game.scale.setGameSize(width() * density, height() * density); });
+    observer.observe(host); game.events.once('destroy', () => observer.disconnect());
+  }
+  if (import.meta.env.DEV) Object.assign(window, { komorebiEngine: game });
+  return game;
 }
