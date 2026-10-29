@@ -2,8 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { recipes, recipeIngredients, type RecipeId } from '../../src/data/recipes';
 import { newState, dishSteps, type State } from '../../src/systems/state';
 const saved = (page: Page): Promise<State> => page.evaluate(() => JSON.parse(localStorage.getItem('komorebi.save.v1')!));
-async function seed(page: Page, id: RecipeId) {
+async function seed(page: Page, id: RecipeId, served=0) {
   const s = newState(); s.phase = 'open'; s.orders = [{id:1,customerId:'aiko',recipeId:id,extra:null,createdAt:Date.now(),patience:1,accepted:true,clarified:false}]; s.nextOrderId=2;
+  s.stats.served=served;
   await page.addInitScript(s => localStorage.setItem('komorebi.save.v1', JSON.stringify(s)), s);
   await page.goto('./'); await page.getByRole('button',{name:'Continuar · dia 1'}).tap();
   await page.getByRole('button',{name:'Ir para a cozinha',exact:true}).tap();
@@ -47,7 +48,9 @@ test('PWA usa os caminhos do Pages, fica offline e preserva um prato entre visit
   await page.goto('./');await page.getByRole('button',{name:'Começar minha história'}).tap();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).tap();
   await expect.poll(()=>page.evaluate(async()=>{const r=await navigator.serviceWorker.ready;return r.scope;})).toContain('/komorebi/');
   await page.getByRole('button',{name:'Configurações',exact:true}).tap();await page.getByRole('button',{name:'Aplicativo & offline',exact:true}).tap();await expect(page.getByText('Pronto para jogar offline',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Fechar',exact:true}).tap();
-  await context.setOffline(true);await page.getByRole('button',{name:'Abrir o restaurante'}).tap();await page.getByRole('button',{name:'Claro, já preparo!'}).tap();await page.getByRole('button',{name:'Ir para a cozinha',exact:true}).tap();await page.getByRole('button',{name:'Preparar Onigiri',exact:true}).tap();
+  await expect(page.locator('.rail')).toBeVisible();const previous=(await page.locator('#world').boundingBox())!,bar=(await page.locator('.rail').boundingBox())!;
+  await context.setOffline(true);await page.getByRole('button',{name:'Abrir o restaurante'}).tap();await expect(page.locator('.rail')).toBeHidden();await expect.poll(async()=>(await page.locator('#world').boundingBox())!.height).toBeGreaterThanOrEqual(previous.height+bar.height-1);await page.screenshot({path:'test-results/mobile-service-no-menu.png'});
+  await page.getByRole('button',{name:'Claro, já preparo!'}).tap();await page.getByRole('button',{name:'Ir para a cozinha',exact:true}).tap();await page.getByRole('button',{name:'Preparar Onigiri',exact:true}).tap();
   const p=await ingredientPoint(page,0);await touch(page,p.x,p.y,undefined,undefined,0,false);const before=await saved(page);expect(before.dish?.step).toBe(1);
   await page.reload();await page.getByRole('button',{name:'Continuar · dia 1'}).tap();expect((await saved(page)).dish).toEqual(before.dish);expect((await saved(page)).money).toBe(before.money);
   await touch(page,430,335,680,335);await expect.poll(async()=> (await saved(page)).dish?.step).toBe(2);await expect(page.locator('body')).toHaveClass(/mobile-game/);
@@ -55,8 +58,8 @@ test('PWA usa os caminhos do Pages, fica offline e preserva um prato entre visit
 test('telas pequenas têm bancada e controles acessíveis sem rolagem horizontal',async({page})=>{
   await page.setViewportSize({width:360,height:640});await seed(page,'donburi');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(360);
-  const board=await page.locator('canvas').boundingBox(),panel=await page.locator('#side-panel').boundingBox(),nav=await page.locator('.rail').boundingBox();
-  expect(board!.height).toBeGreaterThan(300);expect(panel!.y+panel!.height).toBeLessThanOrEqual(nav!.y+1);
+  const board=await page.locator('canvas').boundingBox(),panel=await page.locator('#side-panel').boundingBox();
+  expect(board!.height).toBeGreaterThan(300);expect(panel!.y+panel!.height).toBeLessThanOrEqual(640);await expect(page.locator('.rail')).toBeHidden();
   await page.getByRole('button',{name:'Configurações',exact:true}).tap();await expect(page.getByRole('heading',{name:'Do seu jeito.'})).toBeVisible();await page.screenshot({path:'test-results/mobile-settings.png'});
 });
 test('uma atualização espera a confirmação e retoma a mesma etapa depois de recarregar',async({page})=>{
@@ -85,8 +88,8 @@ test.describe('Retina e rotação do celular',()=>{
  test.use({deviceScaleFactor:2});
  test('roda a tela sem perder o preparo e mantém os ingredientes dentro da bancada',async({page})=>{
   await seed(page,'onigiri');let p=await ingredientPoint(page,0);await touch(page,p.x,p.y,undefined,undefined,0,false);expect((await saved(page)).dish?.step).toBe(1);
-  let canvas=await page.locator('canvas').boundingBox(),panel=await page.locator('#side-panel').boundingBox(),nav=await page.locator('.rail').boundingBox();
-  expect(canvas!.x+canvas!.width).toBeLessThanOrEqual(panel!.x+1);expect(canvas!.y+canvas!.height).toBeLessThanOrEqual(nav!.y+1);
+  let canvas=await page.locator('canvas').boundingBox(),panel=await page.locator('#side-panel').boundingBox();
+  expect(canvas!.x+canvas!.width).toBeLessThanOrEqual(panel!.x+1);expect(canvas!.y+canvas!.height).toBeLessThanOrEqual(390);await expect(page.locator('.rail')).toBeHidden();
   const raster=await page.locator('canvas').evaluate((c:HTMLCanvasElement)=>({w:c.width,h:c.height}));const host=(await page.locator('#world').boundingBox())!;expect(raster.w).toBeLessThanOrEqual(Math.ceil(host.width*2));expect(raster.w*raster.h).toBeLessThanOrEqual(1_600_000);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);await touch(page,430,335,680,335);expect((await saved(page)).dish?.step).toBe(2);
   await page.setViewportSize({width:844,height:390});await page.waitForTimeout(500);p=await ingredientPoint(page,1);await touch(page,p.x,p.y,undefined,undefined,0,false);
@@ -100,6 +103,13 @@ test('um toque cancelado não termina o cozimento',async({page})=>{
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:b.x+b.width/2,y:b.y+cy*b.width/w,id:1}]});await page.waitForTimeout(1900);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});expect((await saved(page)).dish?.step).toBe(2);await cdp.detach();
  await touch(page,560,330,560,330,1900);expect((await saved(page)).dish?.step).toBe(3);
+});
+test('o menu do celular volta ao fechar o dia e o preparo pode ser retomado sem a barra',async({page})=>{
+ await seed(page,'onigiri',3);await expect(page.locator('.rail')).toBeHidden();let p=await ingredientPoint(page,0);await touch(page,p.x,p.y,undefined,undefined,0,false);expect((await saved(page)).dish?.step).toBe(1);
+ await page.getByRole('button',{name:'Voltar ao salão',exact:true}).tap();await expect(page.locator('.rail')).toBeHidden();await page.getByRole('button',{name:'Continuar o preparo',exact:true}).tap();expect((await saved(page)).dish?.step).toBe(1);
+ await touch(page,430,335,680,335);p=await ingredientPoint(page,1);await touch(page,p.x,p.y,undefined,undefined,0,false);await page.getByRole('button',{name:'Servir com carinho'}).tap();expect((await saved(page)).stats.served).toBe(4);await expect(page.locator('.rail')).toBeHidden();
+ await page.getByRole('button',{name:'Fechar por hoje',exact:true}).tap();expect((await saved(page)).phase).toBe('night');await expect(page.locator('.rail')).toBeVisible();await page.waitForTimeout(300);await page.screenshot({path:'test-results/mobile-after-service-menu.png'});
+ await page.getByRole('button',{name:'Decorar',exact:true}).tap();await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'Fechar',exact:true}).tap();await page.getByRole('button',{name:'História',exact:true}).tap();await expect(page.getByRole('dialog')).toBeVisible();
 });
 test('a decoração aceita arraste por toque e guarda os móveis no modo paisagem',async({page})=>{
  const state=newState();await page.addInitScript(s=>localStorage.setItem('komorebi.save.v1',JSON.stringify(s)),state);await page.goto('./');await page.getByRole('button',{name:'Continuar · dia 1'}).tap();

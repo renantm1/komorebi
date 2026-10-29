@@ -39,6 +39,7 @@ function render() {
   $('.settings-button').classList.toggle('has-update', appInstall.updateAvailable);
   $('.settings-button').title = appInstall.updateAvailable ? 'Nova versão disponível em Aplicativo & offline' : 'Configurações';
   const s = model.state, w = weather[(s.day - 1) % weather.length];
+  document.body.classList.toggle('mobile-working',mobileGame&&!menu&&s.phase==='open');
   document.body.classList.toggle('menu-state', menu); document.body.classList.toggle('in-kitchen', model.view === 'kitchen'); document.body.classList.toggle('decorating', model.view === 'decorate');
   $('#day-info').innerHTML = `<span class="day-icon">${icon(w.kind)}</span><div><strong>Dia ${String(s.day).padStart(2, '0')} <span class="muted">·</span> ${s.phase === 'morning' ? 'Uma nova manhã' : s.phase === 'open' ? 'Portas abertas' : 'Luzes de fim de dia'}</strong><small>${w.name} · ${s.settings.relaxed ? 'Sem pressa' : 'Uma casa movimentada'}</small></div>`;
   $('#wallet').innerHTML = `<span class="wallet-icon">${icon('coin')}</span><div><strong>${yen(s.money)}</strong><small class="${model.saves.error ? 'save-warning' : ''}">${model.saves.error ? 'Não foi possível salvar' : 'para cuidar da sua casa'}</small></div>`;
@@ -89,6 +90,7 @@ function chooseRecipe(id: RecipeId) {
 }
 function action(id: string) {
   if (!audio.status.started) syncAudio(); audio.effect('click'); const s = model.state;
+  if(mobileGame&&!menu&&s.phase==='open'&&['shop','story','goals','calendar','decorate'].includes(id)){model.message('O menu da casa fica disponível depois de fechar por hoje.');return;}
   if (id === 'tutorial-on') { if(menu&&!model.hasSave){action('new');return;}if(modal)closeModal();s.tutorial='active';model.changed();if(menu)start();return; }
   if (id === 'tutorial-skip' || id === 'tutorial-complete') { s.tutorial=id==='tutorial-skip'?'dismissed':'completed';model.changed();return; }
   if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals', 'app', 'graphics-lost'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }

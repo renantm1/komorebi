@@ -1,4 +1,7 @@
 /* A portrait game stage and thumb-sized controls, independent of the desktop HUD. */
+/* Reclaim the navigation strip while serving; retain the device's home indicator inset. */
+.mobile-game.mobile-working{--nav:env(safe-area-inset-bottom,0px)}
+.mobile-game.mobile-working .rail{display:none}
 .mobile-game{--top:calc(62px + env(safe-area-inset-top));--nav:calc(68px + env(safe-area-inset-bottom));--sheet:184px;background:#dcc197;height:100dvh;overflow:hidden;overscroll-behavior:none}
 .mobile-game[data-sheet=talk]{--sheet:min(340px,42dvh)}
 .mobile-game[data-sheet=cook]{--sheet:168px}

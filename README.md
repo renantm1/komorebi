@@ -108,6 +108,8 @@ Não houve troca de engine: a renderização antes forçada a Canvas passou a us
 
 ## Instalar como PWA
 
+No celular, a barra de navegação da casa fica escondida enquanto o restaurante está aberto. O salão, a bancada e o pedido aproveitam a altura liberada. Durante o preparo, o botão compacto **Voltar ao salão** permite consultar o pedido e continuar o mesmo prato. Decoração, história, conquistas e calendário ficam disponíveis entre expedientes; a barra volta depois de **Fechar por hoje**. Configurações, atendimento e receitas do preparo continuam acessíveis durante o trabalho.
+
 Abra [Komorebi](https://renantm1.github.io/komorebi/) no celular. No menu do jogo, **Jogar como aplicativo** mostra o botão de instalação quando disponibilizado pelo navegador e instruções nos demais casos.
 
 - **Android:** no Chrome/Edge, use Instalar aplicativo ou Adicionar à tela inicial.
