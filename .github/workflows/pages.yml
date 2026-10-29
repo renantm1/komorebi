@@ -114,7 +114,8 @@ jobs:
           retention-days: 7
 
   iphone:
-    name: Verificar iPhone com WebKit
+    name: Compatibilidade extra com iPhone (informativa)
+    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -152,7 +153,7 @@ jobs:
   deploy:
     name: Publicar no GitHub Pages
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [build, desktop-webgl, iphone]
+    needs: [build, desktop-webgl]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

@@ -2,6 +2,12 @@ import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 const {version}=JSON.parse(readFileSync(new URL('../../package.json',import.meta.url),'utf8'));
 test.use({viewport:{width:1366,height:768},isMobile:false,hasTouch:false});
+test('PC publicado: ingrediente arrastado usa captura nativa e entra no prato',async({page})=>{
+ const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('komorebi.save.v1')!));await page.goto('./');await page.getByRole('button',{name:'Jogar com tutorial'}).click();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).click();for(let i=0;i<4;i++)await page.locator('#tutorial-card .tutorial-assist').click();await expect(page.locator('body')).not.toHaveClass(/world-loading/);
+ const b=(await page.locator('canvas').boundingBox())!,p=(x:number,y:number)=>({x:b.x+x*b.width/1120,y:b.y+y*b.height/730});
+ for(const [sx,sy,tx,ty] of [[63,621,560,340],[560,280,560,420],[152,621,560,340]]){const a=p(sx,sy),z=p(tx,ty);await page.mouse.move(a.x,a.y);await page.mouse.down();if(sy===621)expect(await page.locator('canvas').evaluate(c=>c.hasPointerCapture(1))).toBe(true);await page.mouse.move(z.x,z.y,{steps:1});await page.mouse.up();}
+ expect((await state()).dish).toMatchObject({ready:true,added:['rice','nori']});await page.locator('#tutorial-card .tutorial-assist').click();expect((await state()).stats).toMatchObject({served:1,quality:1});
+});
 test('PC publicado: tutorial retoma offline e entrega um prato com ajuda',async({page,context})=>{
  const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('komorebi.save.v1')!)),assist=()=>page.locator('#tutorial-card .tutorial-assist');
  await page.goto('./');await expect(page.locator('#game-update')).toHaveText('v'+version);await page.getByRole('button',{name:'Jogar com tutorial'}).click();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).click();

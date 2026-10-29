@@ -18,6 +18,8 @@ export class KitchenStation {
   private dragging: Phaser.GameObjects.Image | null = null;
   private pressedIngredient: Phaser.GameObjects.Image | null = null;
   private dragPointer: Phaser.Input.Pointer | null = null;
+  private nativeIngredients = false;
+  private nativeDrag: {id:number;obj:Phaser.GameObjects.Image;startX:number;startY:number;grabX:number;grabY:number;moved:boolean} | null = null;
   private contextKey = '';
   private food: Phaser.GameObjects.Container;
   private meter: Phaser.GameObjects.Graphics;
@@ -64,6 +66,8 @@ export class KitchenStation {
     this.dropHint=s.add.container(0,0,[outline,dropLabel]).setVisible(false);
     this.work=s.add.container(0,0,[this.board,this.target,this.food,this.guides,this.dropHint,this.label,this.meter,this.brush]).setName('workbench');c.add(this.work);
     this.shelf = s.add.container(0, 0).setName('ingredient-shelf'); c.add(this.shelf);
+    this.nativeIngredients=!mobile&&typeof PointerEvent!=='undefined';
+    if(this.nativeIngredients)this.installIngredientPointers();
     const cancel = () => this.cancelTouch(), canvas = s.game.canvas;
     s.input.on('pointerupoutside', cancel); window.addEventListener('blur', cancel); document.addEventListener('visibilitychange', cancel);
     const contextMenu=(event:Event)=>{if(this.active())event.preventDefault();};canvas.addEventListener('contextmenu',contextMenu);
@@ -91,6 +95,42 @@ export class KitchenStation {
   }
 
   private active() { return this.model.view === 'kitchen' && !this.model.paused; }
+  private nativePoint(event:PointerEvent){const r=this.scene.game.canvas.getBoundingClientRect();return {x:(event.clientX-r.left)*1120/r.width,y:(event.clientY-r.top)*730/r.height};}
+  private installIngredientPointers(){
+    const canvas=this.scene.game.canvas;
+    const down=(event:PointerEvent)=>{
+      if(!this.active()||event.button!==0||this.nativeDrag)return;
+      const q=this.nativePoint(event),source=[...this.sources.values()].find(({sprite})=>sprite.visible&&!sprite.getData('returning')&&Math.abs(q.x-sprite.getData('homeX'))<=43&&q.y>=sprite.getData('homeY')-61&&q.y<=sprite.getData('homeY')+47);
+      if(!source)return;
+      // Own the complete ingredient gesture, including mouse-up outside the canvas.
+      // Compatibility mouse events must not add the ingredient a second time.
+      event.preventDefault();
+      if(this.step()?.type!=='ingredient'){this.explainStep();return;}
+      const obj=source.sprite;this.scene.tweens.killTweensOf(obj);this.pressedIngredient=obj;
+      this.nativeDrag={id:event.pointerId,obj,startX:event.clientX,startY:event.clientY,grabX:q.x-obj.x,grabY:q.y-obj.y,moved:false};
+      obj.setData({cancelled:false,moved:false,pressedPointer:null});this.dropHint.setVisible(true);canvas.setPointerCapture(event.pointerId);
+    };
+    const move=(event:PointerEvent)=>{
+      const drag=this.nativeDrag;if(!drag||event.pointerId!==drag.id)return;
+      if(!this.active()){this.cancelTouch();return;}
+      if(!drag.moved&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<5)return;
+      if(!drag.moved){drag.moved=true;this.dragging=drag.obj;drag.obj.setData('moved',true).setAlpha(.95).setDisplaySize(95,81);this.shelf.bringToTop(drag.obj);this.model.feedback('Solte o ingrediente na tábua iluminada.');}
+      const q=this.nativePoint(event);drag.obj.setPosition(q.x-drag.grabX,q.y-drag.grabY);
+    };
+    const up=(event:PointerEvent)=>{
+      const drag=this.nativeDrag;if(!drag||event.pointerId!==drag.id)return;
+      move(event);const q=this.nativePoint(event),inBoard=q.x>=263&&q.x<=855&&q.y>=188&&q.y<=510;
+      const onSource=Math.abs(q.x-drag.obj.getData('homeX'))<=43&&q.y>=drag.obj.getData('homeY')-61&&q.y<=drag.obj.getData('homeY')+47;
+      this.nativeDrag=null;this.dragging=null;this.pressedIngredient=null;this.dropHint.setVisible(false);
+      if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+      if(this.active()&&(inBoard||!drag.moved&&onSource))this.addIngredient(drag.obj);
+      else {this.returnIngredient(drag.obj,false);if(this.active())this.model.feedback('Solte o ingrediente sobre a tábua iluminada para adicionar.','warning');}
+    };
+    const cancel=()=>{if(this.nativeDrag)this.cancelTouch();};
+    canvas.addEventListener('pointerdown',down,true);canvas.addEventListener('pointermove',move,true);canvas.addEventListener('pointerup',up,true);canvas.addEventListener('pointercancel',cancel,true);canvas.addEventListener('lostpointercapture',cancel,true);
+    const cleanup=()=>{canvas.removeEventListener('pointerdown',down,true);canvas.removeEventListener('pointermove',move,true);canvas.removeEventListener('pointerup',up,true);canvas.removeEventListener('pointercancel',cancel,true);canvas.removeEventListener('lostpointercapture',cancel,true);};
+    this.scene.events.once('shutdown',cleanup);this.scene.events.once('destroy',cleanup);
+  }
   private worldPoint(p:Phaser.Input.Pointer){return this.scene.cameras.main.getWorldPoint(p.x,p.y);}
   private toWork(p:Phaser.Input.Pointer){const q=this.worldPoint(p);return {x:(q.x-this.work.x)/this.work.scaleX,y:(q.y-this.work.y)/this.work.scaleY};}
   private inBoard(p:Phaser.Input.Pointer){const q=this.toWork(p);return q.x>=263&&q.x<=855&&q.y>=188&&q.y<=510;}
@@ -135,6 +175,8 @@ export class KitchenStation {
     this.shelf.setData('height',height);this.shelfKey='';this.sync();
   }
   cancelTouch(){
+    const native=this.nativeDrag;this.nativeDrag=null;
+    if(native){const canvas=this.scene.game.canvas;if(canvas.hasPointerCapture(native.id))canvas.releasePointerCapture(native.id);if(this.dragging!==native.obj)this.returnIngredient(native.obj,false);}
     const busy=this.held||!!this.dragging||!!this.pressedIngredient;
     this.held=false;this.brush.setVisible(false);this.food.setScale(1);this.meter.clear();this.dropHint.setVisible(false);
     if(this.pressedIngredient?.active){this.pressedIngredient.setData('cancelled',true).setData('pressedPointer',null);}this.pressedIngredient=null;
@@ -145,6 +187,7 @@ export class KitchenStation {
 
   private step() { const d = this.model.state.dish; return d ? dishSteps(d, this.model.state.orders[0]?.extra ?? null)[d.step] : null; }
   private down(p: Phaser.Input.Pointer) {
+    if(this.nativeDrag)return;
     if(!this.active() || !this.inBoard(p) || this.model.state.dish?.ready || !p.wasTouch&&p.button!==0)return;
     const q=this.toWork(p),step=this.step(),d=this.model.state.dish;if(!step||!d)return;if(step.type==='ingredient'){this.model.feedback(`Escolha ${ingredients[step.ingredient].name.toLowerCase()} na prateleira ou arraste até o prato.`);return;}
     if(step.type==='cut'||step.type==='fold'&&step.count===3){
@@ -196,15 +239,16 @@ export class KitchenStation {
       for(const id of Object.keys(ingredients) as IngredientId[]){
         const halo=this.scene.add.rectangle(0,0,this.mobile?112:80,this.mobile?94:89,0xfff0bd,.1).setStrokeStyle(1,0xf4dfb2,.5);this.shelf.add(halo);this.halos.set(id,halo);
         const sprite=this.scene.add.image(0,0,'ingredient-'+id).setInteractive({useHandCursor:true}).setName('ingredient-'+id).setData('ingredient',id);
-        this.scene.input.setDraggable(sprite);this.shelf.add(sprite);
+        this.scene.input.setDraggable(sprite,!this.nativeIngredients);this.shelf.add(sprite);
         const caption=this.scene.add.text(0,0,ingredients[id].name,{fontFamily:'sans-serif',fontSize:this.mobile?'16px':'14px',color:'#fff4db',align:'center',...(!this.mobile?{wordWrap:{width:82}}:{})}).setOrigin(.5);this.shelf.add(caption);this.sources.set(id,{sprite,caption});
         sprite.on('pointerdown',(p:Phaser.Input.Pointer)=>{
+          if(this.nativeIngredients)return;
           if(!this.active()||sprite.getData('returning')||!p.wasTouch&&p.button!==0)return;
           this.pressedIngredient=sprite;const q=this.worldPoint(p);sprite.setData({pressedPointer:p.id,grabX:q.x-sprite.x,grabY:q.y-sprite.y,moved:false,cancelled:false});
         });
-        sprite.on('pointerup',(p:Phaser.Input.Pointer)=>{if(!p.wasTouch&&p.button!==0||sprite.getData('pressedPointer')!==p.id||sprite.getData('moved')||sprite.getData('cancelled')||!this.active())return;this.addIngredient(sprite);});
-        sprite.on('pointerover',()=>{if(!sprite.input?.dragState&&!sprite.getData('returning'))this.scene.tweens.add({targets:sprite,y:sprite.getData('homeY')-7,duration:130});});
-        sprite.on('pointerout',()=>{if(!sprite.input?.dragState&&!sprite.getData('returning'))this.scene.tweens.add({targets:sprite,y:sprite.getData('homeY'),duration:130});});
+        sprite.on('pointerup',(p:Phaser.Input.Pointer)=>{if(this.nativeIngredients||!p.wasTouch&&p.button!==0||sprite.getData('pressedPointer')!==p.id||sprite.getData('moved')||sprite.getData('cancelled')||!this.active())return;this.addIngredient(sprite);});
+        sprite.on('pointerover',()=>{if(this.dragging!==sprite&&this.pressedIngredient!==sprite&&!sprite.input?.dragState&&!sprite.getData('returning'))this.scene.tweens.add({targets:sprite,y:sprite.getData('homeY')-7,duration:130});});
+        sprite.on('pointerout',()=>{if(this.dragging!==sprite&&this.pressedIngredient!==sprite&&!sprite.input?.dragState&&!sprite.getData('returning'))this.scene.tweens.add({targets:sprite,y:sprite.getData('homeY'),duration:130});});
       }
       this.emptyShelf=this.scene.add.text(0,0,'Escolha uma receita acima.',{fontFamily:'Georgia',fontSize:'23px',color:'#f7e7c3'}).setOrigin(.5);this.shelf.add(this.emptyShelf);
     }

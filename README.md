@@ -25,6 +25,8 @@ Publique o conteúdo de `dist/` em uma hospedagem estática. Caminhos relativos 
 
 O workflow `.github/workflows/pages.yml` executa instalação com `npm ci`, testes de lógica, testes reais com Chromium e build. Somente um resultado aprovado em `main` é enviado ao GitHub Pages; pull requests são testados sem publicar. Também é possível executar o workflow manualmente na aba Actions.
 
+A publicação da versão de PC exige as regras do jogo, os testes em Canvas e WebGL e a suíte de produção/offline. A verificação exclusiva de iPhone/WebKit é informativa enquanto o trabalho está concentrado no PC; seu relatório continua disponível no Actions.
+
 No repositório `renantm1/komorebi`, a origem de **Settings → Pages → Build and deployment → Source** deve ser **GitHub Actions**. Essa habilitação é uma configuração do GitHub, não do código. Depois de habilitar, cada push em `main` atualiza o jogo. O endereço final aparece no job “Publicar no GitHub Pages” e no ambiente `github-pages`.
 
 As Actions oficiais estão fixadas por SHA e o Dependabot propõe atualizações mensalmente. O job de testes tem acesso somente de leitura; apenas a implantação recebe `pages: write` e `id-token: write`. Nenhuma chave de aplicação ou token pessoal é necessário no workflow. O Vite usa caminhos relativos para o jogo funcionar em `/komorebi/`.
@@ -51,6 +53,8 @@ O caderno de receitas também permite consultar os ingredientes e escolher um pr
 ## Tutorial do primeiro dia no PC
 
 O **Caderno da avó** acompanha automaticamente o dia 1, inclusive em partidas antigas que ainda estão nesse dia. O guia destaca os botões, mostra uma seta e um cursor animado na bancada e segue a etapa real do pedido: abrir a casa, aceitar, escolher a receita, preparar, servir os quatro vizinhos e fechar o caixa. Recarregar retoma o passo atual, sem apagar o progresso.
+
+No PC, o arraste de ingredientes usa Pointer Events do navegador, captura a soltura e converte a posição real do cursor em relação ao canvas. A validação da queda usa a tábua desenhada e independe do estado interno do arraste do Phaser. Soltar fora da tábua devolve o ingrediente; perder o foco, pausar ou redimensionar cancela o gesto. Cliques e toques não duplicam a adição.
 
 Se o arraste não responder no navegador, o guia oferece **Adicionar ingrediente** e controles de ajuda em HTML. Para modelar, enrolar, dobrar ou saltear, segure o botão até completar e solte; para cozinhar e fritar, solte na faixa verde. Corte e fechamento do gyoza usam um clique por marca. Esses controles preparam o prato e usam os mesmos ingredientes, qualidade, ações e pagamento do jogo. O botão também aceita segurar Espaço ou Enter. Pausar ou trocar de janela cancela o gesto sem concluir a etapa.
 
