@@ -7,6 +7,7 @@ export interface Decoration { id: string; x: number; y: number; flipped?: boolea
 export interface DayStats { revenue: number; tips: number; served: number; quality: number; rent: number }
 export interface StoryState { read: string[]; replies: Record<string, number>; affinity: Record<string, number>; completed: string[]; letters: string[] }
 export interface State {
+  tutorial?: 'active' | 'dismissed' | 'completed';
   version: 3; day: number; phase: 'morning' | 'open' | 'night'; money: number; xp: number; reputation: number;
   menu: RecipeId[]; orders: Order[]; nextOrderId: number; dish: Dish | null; stats: DayStats;
   decorations: Decoration[]; owned: string[]; upgrades: string[]; relationships: Record<string, number>;

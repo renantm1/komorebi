@@ -29,6 +29,7 @@ export function migrateState(value: unknown): unknown {
 export function validateState(value: unknown): State | null {
   try {
     const s = value as State;
+    if(s?.tutorial!==undefined&&!['active','dismissed','completed'].includes(s.tutorial))delete s.tutorial;
     if (!s || s.version !== 3 || !Number.isInteger(s.day) || !finite(s.day, 1, 100000) || !['morning', 'open', 'night'].includes(s.phase) || !finite(s.money, -10000) || !finite(s.xp) || !finite(s.reputation, 0, 5)) return null;
     if (!Array.isArray(s.menu) || !s.menu.length || new Set(s.menu).size !== s.menu.length || !s.menu.every(k => Object.hasOwn(recipes, k))) return null;
     if (!Array.isArray(s.orders) || s.orders.length > 3 || !s.orders.every(o => finite(o.id, 1) && customers.some(c => c.id === o.customerId) && Object.hasOwn(recipes, o.recipeId) && (o.extra === null || Object.hasOwn(ingredients, o.extra)) && finite(o.createdAt) && finite(o.patience, 0, 1) && typeof o.accepted === 'boolean' && typeof o.clarified === 'boolean')) return null;

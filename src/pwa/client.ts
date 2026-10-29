@@ -18,7 +18,7 @@ export class AppInstall extends EventTarget {
   private async register() {
     try {
       const root = new URL(import.meta.env.BASE_URL, document.baseURI);
-      const r = this.registration = await navigator.serviceWorker.register(new URL('sw.js', root), { scope: root.pathname });
+      const r = this.registration = await navigator.serviceWorker.register(new URL('sw.js', root), { scope: root.pathname, updateViaCache: 'none' });
       const waiting = () => { if (r.waiting && navigator.serviceWorker.controller) this.updateAvailable = true; this.changed(); };
       waiting();
       r.addEventListener('updatefound', () => {
@@ -31,6 +31,7 @@ export class AppInstall extends EventTarget {
         });
       });
       await navigator.serviceWorker.ready; this.offlineReady = true; this.changed();
+      if(navigator.onLine&&navigator.serviceWorker.controller)void r.update().catch(()=>{});
       document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.onLine) void r.update().catch(() => {}); });
     } catch { this.offlineReady = !!navigator.serviceWorker.controller; this.changed(); }
   }

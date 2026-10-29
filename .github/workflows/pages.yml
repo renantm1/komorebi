@@ -41,7 +41,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Testar o jogo no navegador
-        run: npm run test:e2e
+        run: npm run test:e2e -- --project=canvas
         env:
           CI: 'true'
 
@@ -55,6 +55,12 @@ jobs:
         run: npm run test:pwa
         env:
           CI: 'true'
+
+      - name: Resumir os testes do navegador e de produção
+        if: always()
+        run: |
+          node scripts/summarize-tests.mjs test-results/browser-results.json "PC com Canvas"
+          node scripts/summarize-tests.mjs test-results/pwa-results.json "Produção e offline"
 
       - name: Guardar evidências se um teste falhar
         if: failure()
@@ -72,6 +78,40 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa02 # v3
         with:
           path: dist
+
+  desktop-webgl:
+    name: Verificar PC com WebGL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Obter o projeto
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Preparar Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Testar mouse e as doze receitas com WebGL
+        run: npm run test:e2e -- --project=webgl
+        env:
+          CI: 'true'
+      - name: Resumir a verificação do PC com WebGL
+        if: always()
+        run: node scripts/summarize-tests.mjs test-results/browser-results.json "PC com WebGL"
+      - name: Guardar evidências do PC com WebGL
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: evidencias-pc-webgl
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   iphone:
     name: Verificar iPhone com WebKit
@@ -99,7 +139,7 @@ jobs:
           CI: 'true'
       - name: Resumir a verificação do iPhone
         if: always()
-        run: node scripts/summarize-webkit.mjs
+        run: node scripts/summarize-tests.mjs test-results/webkit-results.json "WebKit"
       - name: Guardar evidências do WebKit
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -112,7 +152,7 @@ jobs:
   deploy:
     name: Publicar no GitHub Pages
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [build, iphone]
+    needs: [build, desktop-webgl, iphone]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

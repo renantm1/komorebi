@@ -48,6 +48,14 @@ O dinheiro vem de refeições concluídas e entregues. Precisão da receita e mo
 
 O caderno de receitas também permite consultar os ingredientes e escolher um prato durante o expediente. Há confirmação antes de trocar um preparo iniciado. **Esc** abre ou fecha as configurações.
 
+## Tutorial do primeiro dia no PC
+
+O **Caderno da avó** acompanha automaticamente o dia 1, inclusive em partidas antigas que ainda estão nesse dia. O guia destaca os botões, mostra uma seta e um cursor animado na bancada e segue a etapa real do pedido: abrir a casa, aceitar, escolher a receita, preparar, servir os quatro vizinhos e fechar o caixa. Recarregar retoma o passo atual, sem apagar o progresso.
+
+Se o arraste não responder no navegador, o guia oferece **Adicionar ingrediente** e controles de ajuda em HTML. Para modelar, enrolar, dobrar ou saltear, segure o botão até completar e solte; para cozinhar e fritar, solte na faixa verde. Corte e fechamento do gyoza usam um clique por marca. Esses controles preparam o prato e usam os mesmos ingredientes, qualidade, ações e pagamento do jogo. O botão também aceita segurar Espaço ou Enter. Pausar ou trocar de janela cancela o gesto sem concluir a etapa.
+
+**Pular guia** guarda a preferência. **Como jogar → Ativar tutorial guiado** reabre a ajuda na etapa atual, em qualquer dia, preservando o restaurante. **Jogar com tutorial** também aparece no menu do PC. A passagem para o dia seguinte encerra o guia; ele fica suspenso enquanto você decora ou abre um menu. As demonstrações respeitam a preferência de movimento reduzido.
+
 ## Doze pratos realmente preparáveis
 
 | Prato | Mecânica |

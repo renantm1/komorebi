@@ -8,6 +8,8 @@ import '@fontsource/nunito-sans/latin-800.css';
 import './style.css';
 import './desktop.css';
 import './mobile.css';
+import './tutorial.css';
+import { TutorialGuide } from './ui/tutorialGuide';
 import { mobilePanel, sheetKind } from './ui/mobilePanels';
 import { appInstall } from './pwa/client';
 import { appPanel } from './ui/appPanel';
@@ -30,6 +32,7 @@ const model = new KitchenGame();
 let menu = true, modal: string | null = null, selectedLetter = '', recipeFilter = 0, toastTimer: ReturnType<typeof setTimeout>, autoTimer = 0, shopFilter = 0, paletteKey = '';
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 $('#app').innerHTML = `<header class="header"><a class="brand" href="#" aria-label="Komorebi, menu principal" data-action="main-menu"><span class="brand-seal">${icon('bowl')}</span><span><strong>KOMOREBI<span class="brand-kanji">木漏れ日</span></strong><small>JAPANESE KITCHEN</small></span></a><div id="day-info"></div><div id="wallet"></div><button id="game-update" class="game-version" data-action="app"></button><button class="icon-button settings-button" data-action="settings" aria-label="Configurações">${icon('settings')}</button></header><div class="layout"><nav class="rail" aria-label="Navegação do jogo"><div class="rail-top"><button data-action="restaurant" class="nav-item selected">${icon('home')}<span>Salão</span></button><button data-action="kitchen" class="nav-item">${icon('bowl')}<span>Cozinha</span></button><span class="rail-divider"></span><button data-action="recipes" class="nav-item">${icon('book')}<span>Receitas</span></button><button data-action="shop" class="nav-item">${icon('plant')}<span>Decorar</span></button><button data-action="story" class="nav-item story-nav">${icon('mail')}<span>História</span><i id="letter-badge"></i></button><button data-action="goals" class="nav-item">${icon('star')}<span>Conquistas</span></button><button data-action="calendar" class="nav-item">${icon('calendar')}<span>Calendário</span></button></div><div class="rail-bottom"><button data-action="settings" class="nav-item">${icon('sound')}<span>Ambiente</span></button><button data-action="help" class="nav-item">${icon('help')}<span>Como jogar</span></button></div></nav><main class="main"><div class="page-heading"><div><p class="eyebrow">UM CANTINHO SEU, UM DIA DE CADA VEZ</p><h1 id="page-title">O sabor de se sentir em casa.</h1></div><div id="weather-pill"></div></div><section class="game-layout"><div class="stage-column"><div class="stage-shell"><div id="world-loading" class="world-loading-message" role="status">Preparando a bancada…</div><div id="world" role="application" aria-label="Restaurante Komorebi: cena interativa de culinária"></div><div id="scene-label" class="scene-label"></div><button id="scene-switch" class="scene-switch" data-action="kitchen">${icon('bowl')} Ir para a cozinha ${icon('arrow')}</button><div id="recipe-dock" class="recipe-dock" aria-label="Escolha a receita para preparar"></div><div id="scene-caption" class="scene-caption"></div><div id="scene-radio" class="scene-radio"></div><div id="kitchen-status" class="kitchen-status" role="status" aria-live="polite" hidden></div></div><div class="under-scene"><span>${icon('leaf')} Sem pressa. Os ingredientes nunca acabam.</span><button class="text-button" data-action="help">Como jogar ${icon('arrow')}</button></div></div><aside id="side-panel" class="side-panel" aria-label="Seu restaurante"></aside></section><footer class="footer"><span id="save-status"></span><span>Feito para desacelerar <span class="footer-dot">·</span> 木漏れ日</span><button class="text-button" data-action="credits">Sobre o jogo</button></footer></main></div><div id="toast" class="toast" role="status"></div><div id="modal-root"></div>`;
+const guide = new TutorialGuide(model, action, () => !menu && !mobileGame && !modal && model.view !== 'decorate');
 function renderKitchenStatus(){const el=$('#kitchen-status'),f=model.kitchenFeedback;el.hidden=menu||model.view!=='kitchen'||!f;el.textContent=f?.message??'';el.dataset.kind=f?.kind??'hint';}
 function render() {
   const update=$('#game-update');update.textContent=appInstall.updateAvailable?'Nova versão · Salvar e atualizar':`v${appVersion}`;update.dataset.action=appInstall.updateAvailable?'update-app':'app';update.classList.toggle('ready',appInstall.updateAvailable);
@@ -50,10 +53,15 @@ function render() {
   $('#scene-radio').innerHTML = `<button class="radio-toggle" data-action="toggle-music" aria-label="${s.settings.music ? 'Pausar música' : 'Tocar música'}"><span class="mini-vinyl ${s.settings.music && audio.status.started ? 'spinning' : ''}"></span>${icon(s.settings.music ? 'pause' : 'play')}</button><button class="radio-track" data-action="settings"><small>RÁDIO KOMOREBI · LO-FI</small><strong>${LOFI_TRACKS[s.settings.track].title}</strong></button><button class="radio-next" data-action="next-track" aria-label="Próxima faixa">${icon('arrow')}</button>`;
   audio.weather(w.kind === 'rain');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('selected', (el as HTMLElement).dataset.action === (model.view === 'kitchen' ? 'kitchen' : model.view === 'decorate' ? 'shop' : 'restaurant')));
-  $('#side-panel').innerHTML = menu ? menuPanel(model) : mobileGame ? mobilePanel(model) : model.view === 'decorate' ? decorPanel(model) : s.phase === 'morning' ? morningPanel(model) : s.phase === 'night' ? nightPanel(model) : servicePanel(model);
+  const panel=$('#side-panel');
+  // Keep the guide's held button in the DOM when patience or other panel data updates.
+  if(!mobileGame&&!panel.querySelector('#panel-content'))panel.innerHTML='<div id="panel-content"></div>';
+  const panelContent=mobileGame?panel:$('#panel-content');
+  panelContent.innerHTML = menu ? menuPanel(model) : mobileGame ? mobilePanel(model) : model.view === 'decorate' ? decorPanel(model) : s.phase === 'morning' ? morningPanel(model) : s.phase === 'night' ? nightPanel(model) : servicePanel(model);
   document.body.dataset.sheet = sheetKind(model);
   if(menu) $('#side-panel .menu-actions').insertAdjacentHTML('beforeend', `<button class="install-entry" data-action="app">${icon('home')} ${appInstall.installed ? 'Aplicativo & offline' : mobileGame ? 'Instalar no celular' : 'Baixar e instalar'}</button>`);
-  renderKitchenStatus();renderPalette();
+  if(menu&&!mobileGame)$('#side-panel .menu-actions').insertAdjacentHTML('beforeend','<button class="tutorial-menu-entry" data-action="tutorial-on">Jogar com tutorial</button>');
+  renderKitchenStatus();renderPalette();guide.render();
 }
 function renderPalette() {
   const show = !menu && model.view === 'kitchen' && !!model.state.orders[0]?.accepted;
@@ -70,6 +78,7 @@ function showModal(name: string, preserveFocus = false) {
   const { title, body, eyebrow, wide } = name === 'app' ? appPanel() : modalContent(name, model, selectedLetter, recipeFilter, shopFilter);
   $('#modal-root').innerHTML = `<div class="modal-backdrop"><section class="modal ${wide ? 'wide' : ''} ${name === 'story' ? 'story-modal' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><button class="modal-close icon-button" data-action="close-modal" aria-label="Fechar">${icon('close')}</button><p class="eyebrow">${eyebrow}</p><h2 id="modal-title">${title}</h2>${body}</section></div>`;
   if (!preserveFocus) $('.modal').focus();
+  guide.render();
 }
 function closeModal() { modal = null; model.paused = menu; $('#modal-root').innerHTML = ''; render(); }
 function start() { menu = false; model.paused = false; syncAudio(); if (model.state.dish) model.view = 'kitchen'; render(); if (model.saves.error) model.message(model.saves.error); }
@@ -80,6 +89,8 @@ function chooseRecipe(id: RecipeId) {
 }
 function action(id: string) {
   if (!audio.status.started) syncAudio(); audio.effect('click'); const s = model.state;
+  if (id === 'tutorial-on') { if(menu&&!model.hasSave){action('new');return;}if(modal)closeModal();s.tutorial='active';model.changed();if(menu)start();return; }
+  if (id === 'tutorial-skip' || id === 'tutorial-complete') { s.tutorial=id==='tutorial-skip'?'dismissed':'completed';model.changed();return; }
   if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals', 'app', 'graphics-lost'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }
   if (id === 'graphics-light' || id === 'graphics-auto') {
     if(model.hasSave && !model.saves.save(model.state)){ model.message(model.saves.error || 'Não foi possível salvar.'); return; }

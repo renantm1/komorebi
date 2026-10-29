@@ -17,7 +17,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'canvas' },
-    { name: 'webgl', testMatch: ['**/interaction.spec.ts','**/gameplay.spec.ts'], grep: /mouse:|prepara e entrega/, use: { launchOptions: { executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader'] } } },
+    { name: 'webgl', testMatch: ['**/interaction.spec.ts','**/gameplay.spec.ts','**/tutorial.spec.ts'], grep: /mouse:|prepara e entrega/, use: { launchOptions: { executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader'] } } },
   ],
   webServer: {
     command: `npm run dev -- --port ${port} --strictPort`,
@@ -25,5 +25,5 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
   },
-  reporter: 'list',
+  reporter: [['list'],['json',{outputFile:'test-results/browser-results.json'}]],
 });

@@ -81,7 +81,7 @@ export class KitchenGame extends EventTarget {
     if ((s.day + 1) % 10 === 0) s.lastSummary.push('Noite das lanternas · gorjetas de celebração');
     this.changed(); return true;
   }
-  nextDay() { if (this.state.phase !== 'night') return; this.state.day++; this.state.phase = 'morning'; this.state.stats = emptyStats(); this.changed(); }
+  nextDay() { if (this.state.phase !== 'night') return; if(this.state.tutorial==='active'||this.state.day===1&&this.state.tutorial===undefined)this.state.tutorial='completed';this.state.day++; this.state.phase = 'morning'; this.state.stats = emptyStats(); this.changed(); }
   buyDecor(id: string) { const item = purchase(this.state,id); if(!item)return false; if(['floor','wall'].includes(item.type)){applyStyle(this.state,id);this.view='decorate';}else if(item.type!=='upgrade'){this.placing=id;this.view='decorate';}this.changed();return true; }
   applyInterior(id:string){const item=decorById(id);if(!item||!['floor','wall'].includes(item.type))return false;if(!ownedItem(this.state,id)&&!purchase(this.state,id))return false;if(!applyStyle(this.state,id))return false;this.view='decorate';this.changed();return true;}
   placeDecor(id:string,x:number,y:number){if(!place(this.state,id,x,y))return;this.placing=null;this.selectedDecoration=id;this.changed();}

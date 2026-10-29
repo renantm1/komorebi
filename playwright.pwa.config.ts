@@ -8,5 +8,5 @@ export default defineConfig({
     viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true,
     launchOptions: { executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader'] },
   },
-  webServer: { command: 'node scripts/serve-pwa.mjs', url: `http://127.0.0.1:${port}/komorebi/`, reuseExistingServer: !process.env.CI }, reporter: 'list',
+  webServer: { command: 'node scripts/serve-pwa.mjs', url: `http://127.0.0.1:${port}/komorebi/`, reuseExistingServer: !process.env.CI }, reporter: [['list'],['json',{outputFile:'test-results/pwa-results.json'}]],
 });
