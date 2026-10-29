@@ -6,6 +6,7 @@ import { KitchenStation } from './KitchenStation';
 import {RoomDecor} from './RoomDecor';
 import { loadArt } from './loadArt';
 import { MobileScene } from './MobileScene';
+import { gameDisplay, graphicsMode, type GameDisplay } from '../systems/display';
 export class WorldScene extends Phaser.Scene {
   private room!: Phaser.GameObjects.Container;
   private station!: KitchenStation;
@@ -17,10 +18,11 @@ export class WorldScene extends Phaser.Scene {
   private openSign!: Phaser.GameObjects.Container;
   private festival!: Phaser.GameObjects.Container;
   private clock = 0; private lastView = ''; private lastDecor = '';
-  constructor(private model: KitchenGame, private density = 1) { super('World'); }
+  constructor(private model: KitchenGame) { super('World'); }
   preload() { loadArt(this); }
   create() {
-    this.cameras.main.setOrigin(0, 0).setZoom(this.density);
+    const resize = () => this.cameras.main.setOrigin(0, 0).setZoom((this.registry.get('display') as GameDisplay).density);
+    resize(); this.scale.on('resize', resize); const cleanupResize=()=>this.scale.off('resize',resize);this.events.once('shutdown',cleanupResize);this.events.once('destroy',cleanupResize);
     const room = this.room = this.add.container(0, 0); const backdrop=this.add.image(560,365,'restaurant');room.add(backdrop);
     const doorInterior = this.add.rectangle(594, 284, 251, 216, 0x746e53); room.add(doorInterior);
     this.door = this.add.image(560, 365, 'restaurant').setCrop(468, 174, 251, 216); room.add(this.door);
@@ -48,7 +50,7 @@ export class WorldScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer,objects:Phaser.GameObjects.GameObject[]) => { if(objects.some(o=>o.getData('decoration')))return; if (!this.model.paused && this.model.view === 'decorate' && this.model.placing && p.worldY > 120 && p.worldY < 640) { this.model.placeDecor(this.model.placing, p.worldX, p.worldY); audio.effect('drop'); } });
     const sync = () => this.sync(), served = (e: Event) => this.celebrate((e as CustomEvent).detail.total);
     this.model.addEventListener('change', sync); this.model.addEventListener('served', served);
-    this.events.once('shutdown', () => { this.model.removeEventListener('change', sync); this.model.removeEventListener('served', served); }); this.sync();
+    const cleanup=()=>{this.model.removeEventListener('change',sync);this.model.removeEventListener('served',served);};this.events.once('shutdown',cleanup);this.events.once('destroy',cleanup);this.sync();
   }
   private sync() {
     const m = this.model, s = m.state; this.room.setVisible(m.view !== 'kitchen'); this.station.sync();this.interior.sync();
@@ -84,14 +86,29 @@ export class WorldScene extends Phaser.Scene {
 }
 export function createWorld(parent: string, model: KitchenGame, mobile = false) {
   const host = document.getElementById(parent)!;
-  const density = Math.min(window.devicePixelRatio || 1, 2);
-  const width = () => host.clientWidth / Math.max(1, host.clientHeight) > 1.15 ? 1120 : 640;
-  const height = () => width() * host.clientHeight / Math.max(1, host.clientWidth);
-  const game = new Phaser.Game({ type: Phaser.AUTO, parent, width: (mobile ? width() : 1120) * density, height: (mobile ? height() : 730) * density, backgroundColor: '#e6d6b8', antialias: true, scale: { mode: mobile ? Phaser.Scale.FIT : Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [mobile ? new MobileScene(model, density) : new WorldScene(model, density)], render: { roundPixels: false }, audio: { noAudio: true } });
-  if (mobile) {
-    const observer = new ResizeObserver(() => { if (game.isBooted) game.scale.setGameSize(width() * density, height() * density); });
-    observer.observe(host); game.events.once('destroy', () => observer.disconnect());
-  }
+  const light = graphicsMode() === 'light';
+  const measure = () => gameDisplay(host.clientWidth, host.clientHeight, window.devicePixelRatio || 1, mobile, light);
+  const first = measure() ?? gameDisplay(640, 480, 1, mobile, light)!;
+  const game = new Phaser.Game({ type: light ? Phaser.CANVAS : Phaser.AUTO, parent, width: first.pixelsWide, height: first.pixelsHigh, backgroundColor: '#e6d6b8', antialias: true,
+    callbacks: { preBoot: g => g.registry.set('display', first) },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: [mobile ? new MobileScene(model) : new WorldScene(model)], render: { roundPixels: false }, fps: { target: mobile || light ? 30 : 60, limit: mobile || light ? 30 : 60 }, audio: { noAudio: true } });
+  let frame = 0;
+  const resize = () => {
+    frame = 0; if (!game.isBooted) return;
+    const next = measure(); if (!next) return;
+    const current = game.registry.get('display') as GameDisplay;
+    const unchanged = next.pixelsWide === current.pixelsWide && next.pixelsHigh === current.pixelsHigh && next.width === current.width;
+    if (unchanged && game.scale.parentSize.width === host.clientWidth && game.scale.parentSize.height === host.clientHeight) return;
+    game.registry.set('display', next);
+    game.scale.parentSize.setSize(host.clientWidth, host.clientHeight);
+    if (unchanged) game.scale.refresh(); else game.scale.setGameSize(next.pixelsWide, next.pixelsHigh);
+  };
+  const observer = new ResizeObserver(() => { if (!frame) frame = requestAnimationFrame(resize); });
+  observer.observe(host);
+  const lost = () => { if (model.hasSave) model.saves.save(model.state); model.paused = true; window.dispatchEvent(new Event('komorebi-graphics-lost')); };
+  game.events.once('ready', () => { game.canvas.addEventListener('webglcontextlost', lost); resize(); });
+  game.events.once('destroy', () => { observer.disconnect(); cancelAnimationFrame(frame); game.canvas?.removeEventListener('webglcontextlost', lost); });
   if (import.meta.env.DEV) Object.assign(window, { komorebiEngine: game });
   return game;
 }

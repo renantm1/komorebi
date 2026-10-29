@@ -6,6 +6,7 @@ import { visibleDecor, placement } from '../systems/interior';
 import { audio } from '../systems/audio';
 import { KitchenStation } from './KitchenStation';
 import { loadArt } from './loadArt';
+import type { GameDisplay } from '../systems/display';
 
 /** Mobile compositions shares the game's recipes, saves and economy with desktop. */
 export class MobileScene extends Phaser.Scene {
@@ -30,10 +31,9 @@ export class MobileScene extends Phaser.Scene {
   private get wide() { return this.width > 800; }
   private lastView = '';
   private clock = 0;
-  constructor(private model: KitchenGame, private density: number) { super('Mobile'); }
+  constructor(private model: KitchenGame) { super('Mobile'); }
   preload() { loadArt(this, true); }
   create() {
-    this.cameras.main.setOrigin(0, 0).setZoom(this.density);
     this.input.dragDistanceThreshold = 12;
     this.room = this.add.container(0, 0);
     this.back = this.add.image(320, 450, 'portrait-wall-cream'); this.room.add(this.back);
@@ -70,14 +70,16 @@ export class MobileScene extends Phaser.Scene {
     };
     this.model.addEventListener('change', sync); this.model.addEventListener('served', served);
     this.scale.on('resize', this.layout, this);
-    this.events.once('shutdown', () => { this.model.removeEventListener('change', sync); this.model.removeEventListener('served', served); this.scale.off('resize', this.layout, this); });
+    const cleanup=()=>{this.model.removeEventListener('change',sync);this.model.removeEventListener('served',served);this.scale.off('resize',this.layout,this);};this.events.once('shutdown',cleanup);this.events.once('destroy',cleanup);
     this.layout();
   }
   private toX(x: number) { return this.wide ? x : -90 + x * 820 / 1120; }
   private toY(y: number) { return this.wide ? y * this.height / 730 : (60 + y * 650 / 730) * this.height / 900; }
   private toRoom(x: number, y: number) { return this.wide ? { x, y: y * 730 / this.height } : { x: (x + 90) * 1120 / 820, y: (y * 900 / this.height - 60) * 730 / 650 }; }
   private layout() {
-    this.width = this.scale.width / this.density; this.height = this.scale.height / this.density;
+    const display = this.registry.get('display') as GameDisplay;
+    this.width = display.width; this.height = display.height;
+    this.cameras.main.setOrigin(0, 0).setZoom(display.density);
     const h = this.height, w = this.width;
     this.back.setPosition(w / 2, h / 2).setDisplaySize(w, h); this.front.setPosition(w / 2, h / 2).setDisplaySize(w, h);
     const counter = this.wide ? 447 / 730 : .509;

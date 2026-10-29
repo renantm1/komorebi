@@ -37,8 +37,8 @@ jobs:
       - name: Testar as regras do jogo
         run: npm test
 
-      - name: Instalar Chromium para os testes
-        run: npx playwright install --with-deps chromium
+      - name: Instalar Chromium e WebKit para os testes
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Testar o jogo no navegador
         run: npm run test:e2e
@@ -48,10 +48,22 @@ jobs:
       - name: Gerar o jogo para produção
         run: npm run build
 
+      - name: Gerar o arquivo para baixar e jogar offline
+        run: npm run build:download
+
       - name: Testar o PWA de produção no celular e offline
         run: npm run test:pwa
         env:
           CI: 'true'
+
+      - name: Testar no motor do Safari com perfil de iPhone
+        run: npm run test:webkit
+        env:
+          CI: 'true'
+
+      - name: Resumir a verificação do iPhone
+        if: always()
+        run: node scripts/summarize-webkit.mjs
 
       - name: Guardar evidências se um teste falhar
         if: failure()

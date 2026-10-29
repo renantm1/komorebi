@@ -54,8 +54,13 @@ export function validateState(value: unknown): State | null {
 }
 export class SaveStore {
   error = '';
-  constructor(private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = localStorage) {}
+  private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null = null;
+  constructor(storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>) {
+    try { this.storage = storage ?? globalThis.localStorage ?? null; } catch {}
+    if (!this.storage) this.error = 'O navegador bloqueou o armazenamento. A partida funciona, mas não pode ser salva neste navegador.';
+  }
   load(): State | null {
+    if (!this.storage) return null;
     try {
       const raw = this.storage.getItem(SAVE_KEY); if (!raw) return null;
       let parsed: unknown;
@@ -65,8 +70,8 @@ export class SaveStore {
       return s;
     } catch { this.error = 'Não foi possível ler o progresso. O arquivo original foi preservado.'; return null; }
   }
-  save(s: State): boolean { try { this.storage.setItem(SAVE_KEY, JSON.stringify(s)); this.error = ''; return true; } catch { this.error = 'O navegador bloqueou o salvamento. Permita armazenamento local para guardar seu progresso.'; return false; } }
-  clear() { try { this.storage.removeItem(SAVE_KEY); } catch { this.error = 'Não foi possível apagar o progresso.'; } }
+  save(s: State): boolean { try { if (!this.storage) throw Error('storage unavailable'); this.storage.setItem(SAVE_KEY, JSON.stringify(s)); this.error = ''; return true; } catch { this.error = 'O navegador bloqueou o salvamento. Permita armazenamento local para guardar seu progresso.'; return false; } }
+  clear() { try { if (!this.storage) throw Error('storage unavailable'); this.storage.removeItem(SAVE_KEY); } catch { this.error = 'Não foi possível apagar o progresso.'; } }
 }
 export const cloneState = (s: State) => JSON.parse(JSON.stringify(s)) as State;
 export { newState };

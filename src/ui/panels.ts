@@ -32,7 +32,7 @@ export function servicePanel(m: KitchenGame) {
         else {
           const steps = dishSteps(d, o.extra), step = steps[d.step];
           content += `<div class="step-info"><span class="eyebrow">${d.ready ? 'FEITO COM CARINHO' : `${recipes[d.recipeId].short.toUpperCase()} · ETAPA ${d.step + 1} DE ${steps.length}`}</span><h3>${d.ready ? 'Bom apetite!' : step?.label}</h3><div class="step-dots">${steps.map((_, i) => `<span class="${i < d.step ? 'done' : i === d.step ? 'active' : ''}">${i < d.step ? icon('check') : i + 1}</span>`).join('')}</div></div>`;
-          content += d.ready ? button('Servir com carinho', 'serve') : `<div class="gesture-hint">${icon(step?.type === 'ingredient' ? 'arrow' : 'leaf')}<p>${step?.type === 'ingredient' ? 'Arraste o ingrediente da prateleira até o prato. Eles nunca acabam.' : step ? gestureHelp[step.type] : ''}</p></div>`;
+          content += d.ready ? button('Servir com carinho', 'serve') : `<div class="gesture-hint">${icon(step?.type === 'ingredient' ? 'arrow' : 'leaf')}<p>${step?.type === 'ingredient' ? 'Clique no ingrediente ou arraste até o prato. Eles nunca acabam.' : step ? gestureHelp[step.type] : ''}</p></div>`;
           content += `<button data-action="discard-confirm" class="text-button discard">${icon('trash')} Recomeçar sem custo</button>`;
         }
       } else content += button(d ? 'Continuar o preparo' : 'Ir para a cozinha', 'prepare', 'primary', 'bowl');

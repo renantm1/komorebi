@@ -18,10 +18,11 @@ export default defineConfig({
       ],
     },
     workbox: {
+      globIgnores: ['downloads/**'],
       globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,webmanifest}'],
       maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       navigateFallback: 'index.html',
-      navigateFallbackDenylist: [/\/\.github\//],
+      navigateFallbackDenylist: [/\/\.github\//, /\/downloads\//],
       cleanupOutdatedCaches: true,
       skipWaiting: false,
       clientsClaim: true,

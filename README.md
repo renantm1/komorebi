@@ -15,6 +15,7 @@ O Vite informa o endereço local. Para produção:
 
 ```sh
 npm run build
+npm run build:download # também gera o arquivo offline para computador
 npm run preview
 ```
 
@@ -79,7 +80,7 @@ A faixa verde de cozimento e fritura é generosa: aproximadamente 1,5 a 3,3 segu
 
 ## Visual, decoração e atmosfera
 
-O restaurante ocupa a tela, com HUD sobreposto e menus em papel. Clientes entram, piscam e respiram; a porta se move, as lanternas oscilam, a chuva/neve/pétalas passam pela janela, e há vapor, bolhas, ingredientes arrastáveis, feedback dos gestos e partículas ao servir.
+No computador, o cenário inteiro cabe na área de jogo. Navegação, receitas e pedido ocupam áreas separadas, sem cobrir os ingredientes. A escala preserva a proporção em janelas comuns e telas largas, e adapta a interface ao redimensionar. Ingredientes aceitam clique ou arraste. O arroz tem contorno, sombra e textura para permanecer visível sobre a louça. Os menus usam painéis em papel. Clientes entram, piscam e respiram; a porta se move, as lanternas oscilam, a chuva/neve/pétalas passam pela janela, e há vapor, bolhas, ingredientes arrastáveis, feedback dos gestos e partículas ao servir.
 
 Comida, utensílios, personagens, decoração, cenário e ícones são SVGs originais. A bancada mostra o prato sendo montado. Compre objetos, clique para posicionar e arraste para mudar de lugar no modo decoração. A mesa, a cadeira e os três banquinhos da avó agora são móveis interativos, disponíveis desde o início. Toque ou clique em um objeto para **virar** ou **guardar**; guardar preserva a posse e permite recolocar sem cobrança. Uma grade opcional encaixa posições.
 
@@ -87,7 +88,9 @@ A loja tem categorias de objetos, móveis, paredes, pisos e conforto. **Três pa
 
 No celular, a orientação preferida é **paisagem**: salão amplo, bancada própria, receitas em uma faixa deslizante, ingredientes ao alcance e navegação na parte inferior. O pedido e os controles ficam ao lado da bancada. Em retrato, a composição se adapta com ingredientes em duas fileiras e painel inferior. Os ingredientes aceitam toque ou arraste; os outros gestos são feitos diretamente no prato. O pedido e a etapa ficam em um painel compacto. A interface respeita a área segura do aparelho. Em paisagem, a bancada e o painel ficam lado a lado.
 
-O Phaser escolhe **WebGL** quando disponível, com fallback automático para Canvas. O canvas usa a densidade da tela limitada a 2×, com coordenadas de toque convertidas pela câmera; pratos, personagens e ingredientes usam texturas maiores. Não houve troca de engine: a renderização antes forçada a Canvas passou a usar a GPU compatível com o aparelho.
+O Phaser escolhe **WebGL** quando disponível, com fallback automático para Canvas. O canvas acompanha os pixels físicos da área visível, com limite de 1,6 milhão de pixels no celular e 2048 pixels por dimensão. ResizeObserver agrupa alterações de tamanho e ignora dimensões vazias durante a rotação. As coordenadas de toque são convertidas pela câmera; pratos, personagens e ingredientes usam texturas maiores. No iPhone e iPad, o **modo leve** usa Canvas e 30 FPS por padrão para reduzir pressão de memória. Em Configurações → Desempenho, é possível salvar e escolher entre modo leve e qualidade automática. A perda de contexto gráfico oferece recuperação em modo leve sem apagar a etapa. As imagens móveis são dimensionadas para o tamanho em que aparecem e os filtros de desfoque sobre a cena foram removidos. Armazenamento bloqueado gera um aviso, sem impedir a abertura.
+
+Não houve troca de engine: a renderização antes forçada a Canvas passou a usar a GPU compatível com o aparelho.
 
 ## Instalar como PWA
 
@@ -100,6 +103,12 @@ Abra [Komorebi](https://renantm1.github.io/komorebi/) no celular. No menu do jog
 Na primeira visita online, espere a indicação **Pronto para jogar offline** em Configurações → Aplicativo & offline. O service worker guarda HTML, scripts, fontes e ícones. Arte e trilha são geradas localmente; as doze receitas e a história funcionam sem conexão. A versão de desenvolvimento não registra service worker; offline é validado no build de produção.
 
 Atualizações aguardam confirmação em Aplicativo & offline → **Salvar e atualizar**. O jogo grava o progresso antes de recarregar e permite retomar o prato. A atualização dos caches não remove o LocalStorage. O progresso continua local ao navegador, origem e aparelho; não há sincronização. Limpar os dados do site pode remover tanto o cache quanto a partida. O navegador também pode liberar o cache quando o aparelho estiver sem espaço.
+
+## Arquivo para baixar no computador
+
+Depois de `npm run build`, execute `npm run build:download`. O arquivo `dist/downloads/komorebi-offline.html` contém scripts, fontes, arte e música, sem precisar de servidor. Abra no navegador do computador. O download aparece em Aplicativo & offline e funciona em Windows, Mac e Linux. O site também publica `downloads/como-jogar.html` com instruções.
+
+O arquivo é separado do PWA para iPhone/Android: no celular, instale pelo Safari ou Chrome. O progresso do site não é transferido automaticamente para o arquivo, pois o navegador separa origens. O pacote de download é excluído do cache do PWA para não dobrar o download inicial no celular.
 
 ## Pequenas conquistas
 
@@ -131,14 +140,15 @@ JSON ou estrutura inválida não derrubam o jogo. O arquivo anterior é preserva
 npm test
 npm run build
 npm run test:e2e
-npm run test:pwa # requer npm run build antes
+npm run test:pwa # requer build e build:download antes
+npm run test:webkit # requer WebKit do Playwright
 ```
 
 Os testes de lógica também simulam trinta dias, os oito vizinhos, os novos capítulos, compra e aplicação de acabamentos, guarda e recolocação de móveis, recompensas únicas e migração das duas versões anteriores. Cobrem as doze receitas, ingredientes ilimitados, qualidade, pagamento único, gestos contados, cartas, escolhas, presentes, dez dias, festivais, decoração, migração e armazenamento. Os testes no Chromium preparam e entregam os doze pratos com **gestos reais de mouse**, verificam a retomada, presentes, tela estreita a geração efetiva de áudio pela rádio, mudanças de cor nos pixels do cenário, arraste e guarda da mesa, peixes em movimento e conquistas persistentes.
 
 A suíte de produção PWA serve o build sob `/komorebi/`, como o GitHub Pages, prepara as doze receitas com eventos reais de toque no Chromium/WebGL, verifica ícones e manifesto, reabre offline preservando a etapa, valida tela de 360 px e confirma que uma atualização aguarda o jogador antes de recarregar e bloqueia a recarga se o salvamento falhar. Também verifica rotação em tela de alta densidade, gestos cancelados e decoração por toque. A suíte desktop exercita também o fallback Canvas. Os testes de atualização restauram o service worker original ao terminar.
 
-Playwright inicia o Vite quando necessário. Usa `/usr/bin/chromium` quando disponível, ou o Chromium instalado com `npx playwright install chromium`. `CHROMIUM_PATH` seleciona outro binário. Screenshots são gravadas em `test-results/`.
+Playwright inicia o Vite quando necessário. Usa `/usr/bin/chromium` quando disponível, ou o Chromium instalado com `npx playwright install chromium`. `CHROMIUM_PATH` seleciona outro binário. Screenshots são gravadas em `test-results/`. O Actions instala Chromium e WebKit; o teste WebKit usa perfil de iPhone para cozinhar, girar, recarregar offline e continuar em modo leve. Isso não substitui um teste no aparelho físico. O teste do arquivo offline abre `file://` no Actions; no ambiente gerenciado, onde essa navegação é bloqueada pela política do Chromium, o mesmo HTML do disco é fornecido por uma rota interceptada com a rede desligada.
 
 ## Organização
 

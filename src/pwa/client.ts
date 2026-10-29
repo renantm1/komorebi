@@ -1,7 +1,8 @@
 interface InstallPrompt extends Event { prompt(): Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> }
 export class AppInstall extends EventTarget {
   online = navigator.onLine;
-  offlineReady = false;
+  readonly downloaded = import.meta.env.VITE_OFFLINE_PACKAGE === true || location.protocol === 'file:';
+  offlineReady = this.downloaded;
   updateAvailable = false;
   installed = window.matchMedia('(display-mode: standalone)').matches || !!(navigator as Navigator & { standalone?: boolean }).standalone;
   private deferred: InstallPrompt | null = null;
@@ -12,7 +13,7 @@ export class AppInstall extends EventTarget {
     window.addEventListener('appinstalled', () => { this.installed = true; this.deferred = null; this.changed(); });
     window.addEventListener('online', () => { this.online = true; this.changed(); });
     window.addEventListener('offline', () => { this.online = false; this.changed(); });
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) void this.register();
+    if (import.meta.env.PROD && !this.downloaded && 'serviceWorker' in navigator) void this.register();
   }
   private async register() {
     try {

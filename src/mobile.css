@@ -50,3 +50,8 @@
 .mobile-game .header{border-radius:0;border-left:0;border-right:0;border-top:0}
 
 .settings-button.has-update{position:relative}.settings-button.has-update:after{content:'';position:absolute;top:6px;right:5px;width:7px;height:7px;border-radius:50%;background:#b78058;box-shadow:0 0 0 2px #faf0da}
+
+.graphics-choice{padding:18px 0;border-top:1px solid #d8c99d}.graphics-choice>strong{font-size:14px}.graphics-choice>p{font-size:12px;line-height:1.7;color:#928363;margin:8px 0 14px}.graphics-choice>.secondary{width:100%}
+.mobile-game .stage-shell:after{display:none}.mobile-game .side-panel,.mobile-game .recipe-dock,.mobile-game .modal-backdrop{backdrop-filter:none}.mobile-game.menu-state .side-panel{background-color:#fff4dd}
+
+.download-game{padding-top:20px;margin-top:20px;border-top:1px solid #d6c9a4}.download-game>p{font-size:12px;line-height:1.8;color:#928363;margin:10px 0 15px}.download-game>a{min-height:46px;display:flex}

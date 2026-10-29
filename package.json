@@ -1,6 +1,6 @@
 {
   "name": "komorebi-japanese-kitchen",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,9 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:pwa": "playwright test --config playwright.pwa.config.ts"
+    "test:pwa": "playwright test --config playwright.pwa.config.ts",
+    "build:download": "node scripts/build-download.mjs",
+    "test:webkit": "playwright test --config playwright.webkit.config.ts"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.6",
@@ -21,6 +23,7 @@
     "typescript": "~5.9.3",
     "vite": "^7.1.7",
     "vite-plugin-pwa": "^2.0.0",
+    "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^3.2.4"
   }
 }

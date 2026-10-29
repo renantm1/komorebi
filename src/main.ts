@@ -6,10 +6,12 @@ import '@fontsource/nunito-sans/latin-600.css';
 import '@fontsource/nunito-sans/latin-700.css';
 import '@fontsource/nunito-sans/latin-800.css';
 import './style.css';
+import './desktop.css';
 import './mobile.css';
 import { mobilePanel, sheetKind } from './ui/mobilePanels';
 import { appInstall } from './pwa/client';
 import { appPanel } from './ui/appPanel';
+import { saveGraphics } from './systems/display';
 import { KitchenGame } from './systems/game';
 import { createWorld } from './scenes/WorldScene';
 import { recipes, weather, yen, type RecipeId } from './data/catalog';
@@ -21,7 +23,7 @@ import { audio, LOFI_TRACKS } from './systems/audio';
 import { image, icon } from './ui/helpers';
 import { menuPanel, morningPanel, servicePanel, nightPanel, decorPanel } from './ui/panels';
 import { modalContent } from './ui/modals';
-const mobileGame = matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse) and (max-width:1024px)').matches;
+let mobileGame = matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse) and (max-width:1024px)').matches;
 document.body.classList.toggle('mobile-game', mobileGame);
 const model = new KitchenGame();
 let menu = true, modal: string | null = null, selectedLetter = '', recipeFilter = 0, toastTimer: ReturnType<typeof setTimeout>, autoTimer = 0, shopFilter = 0, paletteKey = '';
@@ -47,7 +49,7 @@ function render() {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('selected', (el as HTMLElement).dataset.action === (model.view === 'kitchen' ? 'kitchen' : model.view === 'decorate' ? 'shop' : 'restaurant')));
   $('#side-panel').innerHTML = menu ? menuPanel(model) : mobileGame ? mobilePanel(model) : model.view === 'decorate' ? decorPanel(model) : s.phase === 'morning' ? morningPanel(model) : s.phase === 'night' ? nightPanel(model) : servicePanel(model);
   document.body.dataset.sheet = sheetKind(model);
-  if(menu) $('#side-panel .menu-actions').insertAdjacentHTML('beforeend', `<button class="install-entry" data-action="app">${icon('home')} ${appInstall.installed ? 'Aplicativo & offline' : 'Jogar como aplicativo'}</button>`);
+  if(menu) $('#side-panel .menu-actions').insertAdjacentHTML('beforeend', `<button class="install-entry" data-action="app">${icon('home')} ${appInstall.installed ? 'Aplicativo & offline' : mobileGame ? 'Instalar no celular' : 'Baixar e instalar'}</button>`);
   renderPalette();
 }
 function renderPalette() {
@@ -75,7 +77,12 @@ function chooseRecipe(id: RecipeId) {
 }
 function action(id: string) {
   if (!audio.status.started) syncAudio(); audio.effect('click'); const s = model.state;
-  if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals', 'app'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }
+  if (['recipes', 'calendar', 'settings', 'shop', 'credits', 'help', 'new-confirm', 'delete-confirm', 'discard-confirm', 'story', 'goals', 'app', 'graphics-lost'].includes(id)) { if (id === 'story') selectedLetter = ''; showModal(id); return; }
+  if (id === 'graphics-light' || id === 'graphics-auto') {
+    if(model.hasSave && !model.saves.save(model.state)){ model.message(model.saves.error || 'Não foi possível salvar.'); return; }
+    if(!saveGraphics(id === 'graphics-light' ? 'light' : 'auto')){ model.message('Não foi possível guardar a preferência.'); return; }
+    window.location.reload(); return;
+  }
   if (id === 'install-app') { void appInstall.install().then(() => showModal('app')); return; }
   if (id === 'update-app') { if(model.hasSave && !model.saves.save(model.state)){ model.message(model.saves.error || 'Não foi possível salvar. Tente novamente antes de atualizar.'); return; } void appInstall.update().catch(()=>model.message('A atualização não pôde ser aplicada. Tente novamente.')); return; }
   if (id === 'new' || id === 'reset-confirmed') { if (modal) closeModal(); model.reset(); selectedLetter = ''; start(); showModal('story'); return; }
@@ -135,10 +142,17 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { if (modal) closeModal(); else showModal('settings'); }
   if (e.key === 'Tab' && modal) { const els = Array.from($('.modal').querySelectorAll<HTMLElement>('button:not(:disabled),input,a')); const first = els[0], last = els.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); } }
 });
+window.addEventListener('komorebi-graphics-lost', () => { audio.pause(true); showModal('graphics-lost'); });
 model.addEventListener('change', render);
 appInstall.addEventListener('change', () => { render(); if (modal === 'app') showModal('app', true); });
 model.addEventListener('notice', () => { const el = $('#toast'); el.innerHTML = `${icon('leaf')}<span>${model.notice}</span>`; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 6500); });
-model.paused = true; render(); createWorld('world', model, mobileGame);
+model.paused = true; render(); let world = createWorld('world', model, mobileGame), changingLayout=false;
+function resizeLayout(){
+  const next=matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse) and (max-width:1024px)').matches;
+  if(next===mobileGame || changingLayout)return;changingLayout=true;mobileGame=next;document.body.classList.toggle('mobile-game',mobileGame);render();
+  world.events.once('destroy',()=>{world=createWorld('world',model,mobileGame);changingLayout=false;resizeLayout();});world.destroy(true);
+}
+matchMedia('(max-width:760px)').addEventListener('change',resizeLayout);matchMedia('(pointer:coarse) and (max-width:1024px)').addEventListener('change',resizeLayout);
 setInterval(() => { if (menu || modal || model.state.phase !== 'open') return; autoTimer++; if (autoTimer % 22 === 0 && !model.state.settings.relaxed) model.spawnOrder(); if (autoTimer % 9 === 0 && model.state.stats.served < dayTarget(model.state.day) && model.state.orders.length === 0) model.spawnOrder(); }, 1000);
 document.addEventListener('visibilitychange', () => { model.paused = document.hidden || !!modal || menu; audio.pause(document.hidden); if (document.hidden && model.hasSave) model.changed(); });
 window.addEventListener('beforeunload', () => { if (model.hasSave) model.saves.save(model.state); });

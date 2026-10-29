@@ -87,7 +87,7 @@ test.describe('Retina e rotação do celular',()=>{
   await seed(page,'onigiri');let p=await ingredientPoint(page,0);await touch(page,p.x,p.y,undefined,undefined,0,false);expect((await saved(page)).dish?.step).toBe(1);
   let canvas=await page.locator('canvas').boundingBox(),panel=await page.locator('#side-panel').boundingBox(),nav=await page.locator('.rail').boundingBox();
   expect(canvas!.x+canvas!.width).toBeLessThanOrEqual(panel!.x+1);expect(canvas!.y+canvas!.height).toBeLessThanOrEqual(nav!.y+1);
-  expect(await page.locator('canvas').getAttribute('width')).toBe('2240');
+  const raster=await page.locator('canvas').evaluate((c:HTMLCanvasElement)=>({w:c.width,h:c.height}));const host=(await page.locator('#world').boundingBox())!;expect(raster.w).toBeLessThanOrEqual(Math.ceil(host.width*2));expect(raster.w*raster.h).toBeLessThanOrEqual(1_600_000);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);await touch(page,430,335,680,335);expect((await saved(page)).dish?.step).toBe(2);
   await page.setViewportSize({width:844,height:390});await page.waitForTimeout(500);p=await ingredientPoint(page,1);await touch(page,p.x,p.y,undefined,undefined,0,false);
   await expect(page.getByRole('button',{name:'Servir com carinho'})).toBeVisible();await page.screenshot({path:'test-results/mobile-landscape-retina.png'});
@@ -109,4 +109,28 @@ test('a decoração aceita arraste por toque e guarda os móveis no modo paisage
  await page.getByRole('button',{name:'Virar',exact:true}).tap();expect((await saved(page)).interior.furniture[0].flipped).toBe(true);
  await page.getByRole('button',{name:'Guardar',exact:true}).tap();expect((await saved(page)).interior.furniture[0].hidden).toBe(true);
  await page.locator('[data-action="place-table-round"]').tap();await touch(page,160,520*h/730,undefined,undefined,0,false);table=(await saved(page)).interior.furniture[0];expect(table.hidden).toBe(false);expect(table.x).toBeCloseTo(160,0);expect((await saved(page)).money).toBe(15000);
+});
+test('um navegador com armazenamento bloqueado abre o jogo e avisa sem crash',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new DOMException('Blocked','SecurityError');}}));
+ await page.goto('./');await page.getByRole('button',{name:'Começar minha história'}).tap();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).tap();
+ await expect(page.getByRole('button',{name:'Abrir o restaurante'})).toBeVisible();await expect(page.locator('#toast')).toContainText('salvamento');expect(errors).toEqual([]);
+});
+test('recupera perda do contexto gráfico em modo leve e preserva a etapa',async({page})=>{
+ await page.goto('./');await page.getByRole('button',{name:'Começar minha história'}).tap();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).tap();await page.getByRole('button',{name:'Abrir o restaurante'}).tap();await page.getByRole('button',{name:'Claro, já preparo!'}).tap();await page.getByRole('button',{name:'Ir para a cozinha',exact:true}).tap();await page.getByRole('button',{name:'Preparar Onigiri',exact:true}).tap();
+ const p=await ingredientPoint(page,0);await touch(page,p.x,p.y,undefined,undefined,0,false);const before=await saved(page);
+ expect(await page.locator('canvas').evaluate((c:HTMLCanvasElement)=>{const gl=c.getContext('webgl');const ext=gl?.getExtension('WEBGL_lose_context');ext?.loseContext();return !!ext;})).toBe(true);
+ await expect(page.getByRole('heading',{name:'Vamos continuar com calma.'})).toBeVisible();await page.getByRole('button',{name:'Salvar e continuar no modo leve'}).tap();await page.getByRole('button',{name:'Continuar · dia 1'}).tap();
+ expect((await saved(page)).dish).toEqual(before.dish);expect(await page.locator('canvas').evaluate((c:HTMLCanvasElement)=>!!c.getContext('2d'))).toBe(true);
+ await touch(page,430,335,680,335);expect((await saved(page)).dish?.step).toBe(2);
+});
+test('arquivo baixado abre pelo disco sem rede, monta um prato e retoma a partida',async({page,context})=>{
+ const {pathToFileURL}=await import('node:url'),{resolve}=await import('node:path');await page.setViewportSize({width:1280,height:800});
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));const network:string[]=[];page.on('request',r=>{if(r.resourceType()!=='document' && /^https?:/.test(r.url()))network.push(r.url());});await context.setOffline(true);
+ try { await page.goto(pathToFileURL(resolve('dist/downloads/komorebi-offline.html')).href); } catch(error) {
+  if(process.env.GITHUB_ACTIONS || !String(error).includes('ERR_BLOCKED_BY_ADMINISTRATOR')) throw error;
+  const {readFile}=await import('node:fs/promises');const html=await readFile('dist/downloads/komorebi-offline.html','utf8');const url=new URL('downloads/komorebi-offline.html',test.info().project.use.baseURL).href;
+  await page.route(url,r=>r.fulfill({status:200,contentType:'text/html',body:html}));await page.goto(url);network.length=0;
+ }await page.getByRole('button',{name:'Começar minha história'}).click();await page.getByRole('button',{name:'Guardar esta carta e voltar'}).click();await page.getByRole('button',{name:'Abrir o restaurante'}).click();await page.getByRole('button',{name:'Claro, já preparo!'}).click();await page.getByRole('button',{name:'Ir para a cozinha',exact:true}).click();await page.getByRole('button',{name:'Preparar Onigiri',exact:true}).click();
+ const b=(await page.locator('canvas').boundingBox())!,point=(x:number,y:number)=>({x:b.x+x*b.width/1120,y:b.y+y*b.height/730});let a=point(63,621),z=point(560,330);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(z.x,z.y,{steps:8});await page.mouse.up();
+ const before=await saved(page);expect(before.dish?.step).toBe(1);await page.reload();await page.getByRole('button',{name:'Continuar · dia 1'}).click();expect((await saved(page)).dish).toEqual(before.dish);expect(network).toEqual([]);expect(errors).toEqual([]);
 });

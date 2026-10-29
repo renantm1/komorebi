@@ -15,15 +15,22 @@ export class KitchenStation {
   private meter: Phaser.GameObjects.Graphics;
   private brush: Phaser.GameObjects.Graphics;
   private label: Phaser.GameObjects.Text;
+  private heading: Phaser.GameObjects.Text;
+  private subtitle: Phaser.GameObjects.Text;
   private halos = new Map<IngredientId, Phaser.GameObjects.Rectangle>();
   private key = ''; private shelfKey = ''; private held = false; private holdStarted = 0; private elapsed = 0; private travel = 0; private startX = 0; private startY = 0; private lastX = 0; private clock = 0;
   constructor(private scene: Phaser.Scene, private model: KitchenGame, private mobile = false) {
     const s = scene, c = this.container = s.add.container(0, 0);
+    s.input.dragDistanceThreshold = mobile ? 12 : 8;
     if(mobile){this.mobileBackground=s.add.image(320,450,'portrait-kitchen').setDisplaySize(640,900);c.add(this.mobileBackground);}
     this.mobileBoard=s.add.graphics();c.add(this.mobileBoard);
     const g = s.add.graphics(); g.fillStyle(0xc9a578); g.fillRect(0, 0, 1120, 730);
     for (let x = 0; x < 1120; x += 74) { g.lineStyle(1, 0x99734c, .2); g.lineBetween(x, 0, x + 10, 730); }
     g.fillStyle(0xf1e7ce); g.fillRect(0, 0, 1120, 173); g.fillStyle(0xb89768); g.fillRect(0, 167, 1120, 10);
+    for(let x=0;x<1120;x+=80){g.lineStyle(1,0xd4c6a7,.25);g.lineBetween(x,0,x,165);}
+    g.fillStyle(0xb99a6d);g.fillRoundedRect(40,128,210,10,4);
+    for(let i=0;i<4;i++){g.fillStyle([0xa8b68d,0xd5b389,0xabb39a,0xd8c6a2][i]);g.fillRoundedRect(58+i*44,89,31,38,6);g.fillEllipse(73+i*44,89,31,9,32);g.lineStyle(2,0x8a9470,.5);g.strokeEllipse(73+i*44,89,31,9,32);}
+    g.lineStyle(3,0xa38b62);g.lineBetween(886,52,1068,52);for(let i=0;i<3;i++){const x=919+i*58;g.lineStyle(3,0x84947a);g.lineBetween(x,53,x,105);g.strokeEllipse(x,116,22+i*3,31,32);}
     g.fillStyle(0x9c774b, .22); g.fillRoundedRect(271, 208, 581, 299, 24); g.fillStyle(0xe8c597); g.fillRoundedRect(263, 198, 581, 299, 24); g.lineStyle(2, 0xc69e6f); g.strokeRoundedRect(274, 208, 559, 279, 19);
     for (let y = 225; y < 480; y += 21) { g.lineStyle(1, 0xc19766, .2); g.lineBetween(290, y, 820, y + 4); }
     // A folded kitchen towel, a knife, chopsticks and a small herb vase frame the work surface.
@@ -34,6 +41,8 @@ export class KitchenStation {
     g.fillStyle(0xb38b5e); g.fillRect(0, 534, 1120, 196); g.fillStyle(0x977048); g.fillRect(0, 531, 1120, 9); c.add(g);g.setVisible(!mobile);
     c.add(s.add.text(44, 493, '心をこめて。', { fontFamily: 'serif', fontSize: '17px', color: '#9a7c51' }).setVisible(!mobile));
     c.add(s.add.text(65, 556, 'SUA BANCADA · INGREDIENTES LIVRES', { fontFamily: 'sans-serif', fontSize: '10px', letterSpacing: 2, color: '#faedd2' }).setVisible(!mobile));
+    this.heading=s.add.text(560,75,'Sua cozinha, seu ritmo.',{fontFamily:'Georgia',fontSize:'29px',color:'#667b51'}).setOrigin(.5).setVisible(!mobile);c.add(this.heading);
+    this.subtitle=s.add.text(560,112,'DO CADERNO DA AVÓ · FEITO POR VOCÊ',{fontFamily:'sans-serif',fontSize:'11px',letterSpacing:2,color:'#a08b60'}).setOrigin(.5).setVisible(!mobile);c.add(this.subtitle);
     this.board = s.add.container(0, 0); c.add(this.board); this.food = s.add.container(560, 340); c.add(this.food);
     this.label = s.add.text(560, 467, '', { fontFamily: 'Georgia', fontSize: '17px', color: '#7b7952' }).setOrigin(.5); c.add(this.label);
     this.meter = s.add.graphics(); c.add(this.meter);
@@ -43,7 +52,7 @@ export class KitchenStation {
     const cancel=()=>this.cancelTouch();
     s.input.on('pointerupoutside',cancel);window.addEventListener('blur',cancel);document.addEventListener('visibilitychange',cancel);
     s.game.canvas.addEventListener('touchcancel',cancel,{capture:true,passive:true});
-    s.events.once('shutdown',()=>{window.removeEventListener('blur',cancel);document.removeEventListener('visibilitychange',cancel);s.game.canvas.removeEventListener('touchcancel',cancel,true);});
+    const canvas=s.game.canvas,cleanup=()=>{window.removeEventListener('blur',cancel);document.removeEventListener('visibilitychange',cancel);canvas.removeEventListener('touchcancel',cancel,true);};s.events.once('shutdown',cleanup);s.events.once('destroy',cleanup);
     s.input.on('pointerdown', this.down, this); s.input.on('pointermove', this.move, this); s.input.on('pointerup', this.up, this);
     s.input.on('dragstart', (_p: Phaser.Input.Pointer, obj: Phaser.GameObjects.Image) => { if (!obj.getData('ingredient')) return; s.tweens.killTweensOf(obj); this.shelf.bringToTop(obj); obj.setData('moved',true);obj.setAlpha(.9).setDisplaySize(mobile?112:95,mobile?95:81); });
     s.input.on('drag', (_p: Phaser.Input.Pointer, obj: Phaser.GameObjects.Image, x: number, y: number) => { if (!obj.getData('ingredient')) return; obj.setPosition(x, y); });
@@ -99,7 +108,7 @@ export class KitchenStation {
   private puff(x: number, y: number) { for (let i = 0; i < 6; i++) { const p = this.scene.add.circle(x, y, 2 + i % 2, 0xffefbd, .8); this.work.add(p); this.scene.tweens.add({ targets: p, x: x + Math.cos(i) * 35, y: y - 10 + Math.sin(i) * 24, alpha: 0, duration: 550, onComplete: () => p.destroy() }); } }
   sync() {
     this.container.setVisible(this.model.view === 'kitchen');
-    const s = this.model.state, d = s.dish, shelfKey = d?.recipeId + ':' + s.orders[0]?.extra;
+    const s = this.model.state, d = s.dish;this.heading.setText(d?recipes[d.recipeId].name:'Sua cozinha, seu ritmo.');this.subtitle.setText(d?recipes[d.recipeId].japanese:'DO CADERNO DA AVÓ · FEITO POR VOCÊ');const shelfKey = d?.recipeId + ':' + s.orders[0]?.extra;
     if (shelfKey !== this.shelfKey) { this.shelfKey = shelfKey; this.renderShelf(); }
     const key = JSON.stringify(d); if (key !== this.key) { this.key = key; this.renderFood(); }
     const step = this.step(); for (const [id, halo] of this.halos) halo.setAlpha(step?.type === 'ingredient' && step.ingredient === id ? .3 : .04);
@@ -111,8 +120,8 @@ export class KitchenStation {
       const x = this.mobile?(this.wide?64+i*124:64+i%5*128):63+i*89,homeY=this.mobile?(this.shelf.getData('height')??900)-(this.wide?63:175)+(this.wide?0:Math.floor(i/5)*100):621,halo = this.scene.add.rectangle(x, homeY, this.mobile?(this.wide?108:112):80, this.mobile?(this.wide?80:94):89, 0xfff0bd, .1).setStrokeStyle(1, 0xf4dfb2, .5); this.shelf.add(halo); this.halos.set(id, halo);
       const sprite = this.scene.add.image(x, homeY, 'ingredient-' + id).setDisplaySize(this.mobile?(this.wide?92:98):82,this.mobile?(this.wide?78:83):70).setInteractive({ useHandCursor: true });
       sprite.setData({ ingredient:id,homeX:x,homeY,homeScaleX:sprite.scaleX,homeScaleY:sprite.scaleY,moved:false }); this.scene.input.setDraggable(sprite); this.shelf.add(sprite);
-      this.shelf.add(this.scene.add.text(x,this.mobile?homeY+43:583,ingredients[id].name,{ fontFamily:'sans-serif',fontSize:this.mobile?'16px':'11px', color: '#f9edd0' }).setOrigin(.5));
-      sprite.on('pointerup',()=>{if(!this.mobile||sprite.getData('moved')||!this.active())return;if(this.model.ingredient(id)){audio.effect('drop');this.puff(560,330);}});
+      this.shelf.add(this.scene.add.text(x,this.mobile?homeY+43:583,ingredients[id].name,{ fontFamily:'sans-serif',fontSize:this.mobile?'16px':'15px', color: '#f9edd0' }).setOrigin(.5));
+      sprite.on('pointerup',()=>{if(sprite.getData('moved')||!this.active())return;if(this.model.ingredient(id)){audio.effect('drop');this.puff(560,330);}});
       sprite.on('pointerover', () => { if (!sprite.input?.dragState && !sprite.getData('returning')) this.scene.tweens.add({ targets: sprite, y: homeY-7, duration: 130 }); });
       sprite.on('pointerout', () => { if (!sprite.input?.dragState && !sprite.getData('returning')) this.scene.tweens.add({ targets: sprite, y: homeY, duration: 130 }); });
     });
@@ -121,7 +130,7 @@ export class KitchenStation {
   private renderFood() {
     this.board.removeAll(true); for (const child of this.food.list) this.scene.tweens.killTweensOf(child); this.food.removeAll(true); this.meter.clear(); this.food.setScale(1); this.label.setText('');
     const d = this.model.state.dish, step = this.step();
-    const p = this.scene.add.graphics(); p.fillStyle(0xfff7df); p.fillEllipse(560, 350, 361, 216, 96); p.lineStyle(3, 0xb6c39d); p.strokeEllipse(560, 350, 335, 191, 96); this.board.add(p);
+    const p = this.scene.add.graphics(); p.fillStyle(0xe5e9d4); p.fillEllipse(560, 350, 361, 216, 96); p.lineStyle(3, 0xb6c39d); p.strokeEllipse(560, 350, 335, 191, 96); this.board.add(p);
     if (!d) { this.label.setText('Que prato vamos preparar?'); this.food.add(this.scene.add.text(0, -10, '十二の小さな幸せ', { fontFamily: 'serif', fontSize: '27px', color: '#a0a47e' }).setOrigin(.5)); return; }
     if (d.ready) {
       const dish = this.scene.add.image(0, -8, 'food-' + d.recipeId).setDisplaySize(260, 260); this.food.add(dish);
@@ -150,7 +159,8 @@ export class KitchenStation {
       g.fillStyle(step?.type === 'fry' ? 0xb78b3e : 0xb6c49a); g.fillEllipse(0, -5, 265, 168); g.lineStyle(4, 0x7c8d67); g.strokeEllipse(0, -5, 265, 168);
       for (let i = 0; i < 5; i++) { const x = -73 + i % 3 * 64, y = -37 + Math.floor(i / 3) * 56; g.fillStyle(d.added.includes('dough') ? 0xe1bd70 : 0xdba17d); g.fillRoundedRect(x, y, 51, d.recipeId === 'tempura' ? 76 : 43, 14); g.lineStyle(3, 0xf4d494); g.lineBetween(x + 9, y + 10, x + 34, y + 20); }
     } else {
-      g.fillStyle(0xfff7dc); if (d.recipeId === 'onigiri' && d.step > 1) { g.fillTriangle(0, -83, -90, 46, 90, 46); g.lineStyle(2, 0xe3d3ac); g.strokeTriangle(0, -83, -90, 46, 90, 46); } else g.fillEllipse(0, -4, 185, 94);
+      g.fillStyle(0xfff7dc); if (d.recipeId === 'onigiri' && d.step > 1) { g.fillTriangle(0, -83, -90, 46, 90, 46); g.lineStyle(2, 0xe3d3ac); g.strokeTriangle(0, -83, -90, 46, 90, 46); } else { g.fillStyle(0xb4a681,.28);g.fillEllipse(3,2,190,98,64);g.fillStyle(0xfff5d7);g.fillEllipse(0,-5,185,94,64);g.lineStyle(2,0xc7b88f);g.strokeEllipse(0,-5,185,94,64); }
+      g.fillStyle(0xd9cba5,.8);for(let i=0;i<24;i++)g.fillEllipse(-59+i%8*17,-25+Math.floor(i/8)*20+(i%3)*2,7,3,8);
       if (d.added.includes('salmon')) { g.fillStyle(0xe99b7b); g.fillRoundedRect(-95, -55, 190, 61, 18); g.lineStyle(5, 0xffdcbc); for (let i = 0; i < 5; i++) g.lineBetween(-73 + i * 35, -51, -61 + i * 35, -1); }
     }
     // Extras are visible in the dish instead of being bookkeeping-only additions.
